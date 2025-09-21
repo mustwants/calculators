@@ -38,6 +38,47 @@ function App() {
         </ErrorBoundary>
       </main>
 
+      {/* SEO Content Section */}
+      <section className="bg-white py-12 border-t border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Why Choose VetMover by MustWants?
+            </h2>
+            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+              SDVOSB certified financial tools designed specifically for military families, 
+              veterans, and active duty personnel making PCS moves and housing decisions.
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="text-center">
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">🎖️ Military Expertise</h3>
+              <p className="text-gray-600">
+                Built by veterans for veterans. Our SDVOSB certified team understands 
+                VA loans, BAH, PCS moves, and military housing allowances.
+              </p>
+            </div>
+            
+            <div className="text-center">
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">📊 Accurate Calculations</h3>
+              <p className="text-gray-600">
+                Pre-populated with national averages and updated military pay scales. 
+                Get precise calculations for VA mortgage, rent analysis, and property taxes.
+              </p>
+            </div>
+            
+            <div className="text-center">
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">🔒 Trusted Partner</h3>
+              <p className="text-gray-600">
+                Sponsored by MustWants.com and verified by MilitaryGrad. 
+                Free tools with no hidden fees or data collection.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="bg-gradient-to-b from-blue-900 to-blue-800 text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

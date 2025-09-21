@@ -1,0 +1,23 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://vetmover.com/sitemap.xml
+
+# MustWants and MilitaryGrad brand protection
+User-agent: *
+Disallow: /admin
+Disallow: /private
+Disallow: /*.json$
+Disallow: /dist/
+
+# Allow important military calculator pages
+Allow: /
+Allow: /mortgage-calculator
+Allow: /bah-calculator  
+Allow: /rent-calculator
+Allow: /buy-vs-rent-calculator
+Allow: /property-tax-calculator
+
+# Crawl-delay for better server performance
+Crawl-delay: 1
