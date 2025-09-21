@@ -11,7 +11,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
-import nationalAverages from './data/nationalAverages.json';
+import { nationalAverages } from './data/nationalAverages.js';
 
 ChartJS.register(
   CategoryScale,

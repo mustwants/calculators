@@ -5,5 +5,17 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173
-  }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          charts: ['chart.js', 'react-chartjs-2']
+        }
+      }
+    },
+    chunkSizeWarningLimit: 1000
+  },
+  assetsInclude: ['**/*.json']
 });

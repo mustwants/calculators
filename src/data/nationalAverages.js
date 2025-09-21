@@ -1,3 +1,4 @@
+export const nationalAverages = 
 {
   "lastUpdated": "2025-09-21",
   "sources": {
@@ -627,3 +628,4 @@
     }
   }
 }
+;

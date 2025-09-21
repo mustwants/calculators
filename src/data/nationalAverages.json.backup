@@ -9,6 +9,7 @@
     "vaLoan": "VA Lender Handbook",
     "bah": "DoD BAH Calculator 2025"
   },
+  
   "housing": {
     "nationalAverages": {
       "propertyTaxRate": 1.1,
@@ -23,6 +24,7 @@
       "capitalExReserve": 5.0,
       "tenantTurnoverCost": 1500
     },
+    
     "rentByBedrooms": {
       "studio": 1250,
       "oneBedroom": 1450,
@@ -31,6 +33,7 @@
       "fourBedroom": 2500,
       "fivePlusBedroom": 2950
     },
+    
     "utilityAverages": {
       "electric": 125,
       "gas": 85,
@@ -39,6 +42,7 @@
       "total": 320
     }
   },
+  
   "mortgageRates": {
     "conventional30Year": 7.25,
     "conventional15Year": 6.75,
@@ -49,18 +53,11 @@
     "refinanceRate": 7.1,
     "cashOutRefinance": 7.35
   },
+
   "phase2Data": {
     "rentalProperty": {
-      "managementFeeRange": {
-        "min": 6,
-        "max": 12,
-        "average": 8
-      },
-      "vacancyRateRange": {
-        "min": 4,
-        "max": 10,
-        "average": 6.8
-      },
+      "managementFeeRange": { "min": 6, "max": 12, "average": 8 },
+      "vacancyRateRange": { "min": 4, "max": 10, "average": 6.8 },
       "maintenanceReserve": 1.5,
       "capExReserve": 1.0,
       "tenantScreeningCost": 50,
@@ -78,10 +75,7 @@
     },
     "equityGrowth": {
       "averageAppreciation": 3.5,
-      "appreciationRange": {
-        "min": 2,
-        "max": 6
-      },
+      "appreciationRange": { "min": 2, "max": 6 },
       "paydownAcceleration": 1.2,
       "marketCycleDuration": 84
     },
@@ -94,6 +88,7 @@
       "vaResidualIncomeMinimum": 1000
     }
   },
+  
   "vaLoanData": {
     "fundingFeeRates": {
       "firstTimeNone": 2.15,
@@ -115,6 +110,7 @@
       "survivingSpouseExempt": true
     }
   },
+  
   "pcsSpecific": {
     "averagePcsCycle": 36,
     "movingCosts": {
@@ -130,6 +126,7 @@
       "staging": 0.5
     }
   },
+  
   "militaryPayData": {
     "averageBahByRank": {
       "E1-E3": 1200,
@@ -152,43 +149,16 @@
       "divePay": 340
     }
   },
+  
   "taxData": {
     "federalTaxBrackets": [
-      {
-        "min": 0,
-        "max": 11000,
-        "rate": 10
-      },
-      {
-        "min": 11000,
-        "max": 44725,
-        "rate": 12
-      },
-      {
-        "min": 44725,
-        "max": 95375,
-        "rate": 22
-      },
-      {
-        "min": 95375,
-        "max": 182050,
-        "rate": 24
-      },
-      {
-        "min": 182050,
-        "max": 231250,
-        "rate": 32
-      },
-      {
-        "min": 231250,
-        "max": 578125,
-        "rate": 35
-      },
-      {
-        "min": 578125,
-        "max": 999999999,
-        "rate": 37
-      }
+      { "min": 0, "max": 11000, "rate": 10 },
+      { "min": 11000, "max": 44725, "rate": 12 },
+      { "min": 44725, "max": 95375, "rate": 22 },
+      { "min": 95375, "max": 182050, "rate": 24 },
+      { "min": 182050, "max": 231250, "rate": 32 },
+      { "min": 231250, "max": 578125, "rate": 35 },
+      { "min": 578125, "max": 999999999, "rate": 37 }
     ],
     "standardDeduction": {
       "single": 13850,
@@ -211,63 +181,21 @@
       }
     }
   },
+  
   "costOfLivingByState": {
-    "Alabama": {
-      "index": 88.5,
-      "housing": 79.2,
-      "utilities": 95.8
-    },
-    "Alaska": {
-      "index": 127.1,
-      "housing": 134.3,
-      "utilities": 169.0
-    },
-    "Arizona": {
-      "index": 106.9,
-      "housing": 110.6,
-      "utilities": 102.3
-    },
-    "California": {
-      "index": 151.7,
-      "housing": 196.5,
-      "utilities": 122.4
-    },
-    "Colorado": {
-      "index": 110.5,
-      "housing": 128.1,
-      "utilities": 98.2
-    },
-    "Florida": {
-      "index": 103.1,
-      "housing": 108.4,
-      "utilities": 107.2
-    },
-    "Georgia": {
-      "index": 93.4,
-      "housing": 89.2,
-      "utilities": 103.8
-    },
-    "Hawaii": {
-      "index": 184.5,
-      "housing": 258.2,
-      "utilities": 168.9
-    },
-    "Texas": {
-      "index": 93.9,
-      "housing": 90.7,
-      "utilities": 107.1
-    },
-    "Virginia": {
-      "index": 106.7,
-      "housing": 111.8,
-      "utilities": 102.5
-    },
-    "Washington": {
-      "index": 115.4,
-      "housing": 130.2,
-      "utilities": 89.1
-    }
+    "Alabama": { "index": 88.5, "housing": 79.2, "utilities": 95.8 },
+    "Alaska": { "index": 127.1, "housing": 134.3, "utilities": 169.0 },
+    "Arizona": { "index": 106.9, "housing": 110.6, "utilities": 102.3 },
+    "California": { "index": 151.7, "housing": 196.5, "utilities": 122.4 },
+    "Colorado": { "index": 110.5, "housing": 128.1, "utilities": 98.2 },
+    "Florida": { "index": 103.1, "housing": 108.4, "utilities": 107.2 },
+    "Georgia": { "index": 93.4, "housing": 89.2, "utilities": 103.8 },
+    "Hawaii": { "index": 184.5, "housing": 258.2, "utilities": 168.9 },
+    "Texas": { "index": 93.9, "housing": 90.7, "utilities": 107.1 },
+    "Virginia": { "index": 106.7, "housing": 111.8, "utilities": 102.5 },
+    "Washington": { "index": 115.4, "housing": 130.2, "utilities": 89.1 }
   },
+  
   "militaryBasesData": {
     "majorBases": {
       "fortLiberty": {
@@ -277,7 +205,7 @@
         "localRentIndex": 92.1
       },
       "fortCavazos": {
-        "state": "Texas",
+        "state": "Texas", 
         "costIndex": 89.7,
         "averageBah": 1380,
         "localRentIndex": 88.5
@@ -296,6 +224,7 @@
       }
     }
   },
+  
   "calculatorDefaults": {
     "pcsDeduction": {
       "grossIncome": 75000,
@@ -331,6 +260,7 @@
       "targetBah": 2850
     }
   },
+
   "phase3Data": {
     "capitalGains": {
       "primaryResidenceExclusion": {
@@ -345,54 +275,23 @@
       "capitalGainsTaxRates": {
         "shortTerm": {
           "description": "Taxed as ordinary income",
-          "rates": [
-            10,
-            12,
-            22,
-            24,
-            32,
-            35,
-            37
-          ]
+          "rates": [10, 12, 22, 24, 32, 35, 37]
         },
         "longTerm": {
           "single": [
-            {
-              "min": 0,
-              "max": 44625,
-              "rate": 0
-            },
-            {
-              "min": 44626,
-              "max": 492300,
-              "rate": 15
-            },
-            {
-              "min": 492301,
-              "max": 999999999,
-              "rate": 20
-            }
+            {"min": 0, "max": 44625, "rate": 0},
+            {"min": 44626, "max": 492300, "rate": 15},
+            {"min": 492301, "max": 999999999, "rate": 20}
           ],
           "marriedFilingJointly": [
-            {
-              "min": 0,
-              "max": 89250,
-              "rate": 0
-            },
-            {
-              "min": 89251,
-              "max": 553850,
-              "rate": 15
-            },
-            {
-              "min": 553851,
-              "max": 999999999,
-              "rate": 20
-            }
+            {"min": 0, "max": 89250, "rate": 0},
+            {"min": 89251, "max": 553850, "rate": 15},
+            {"min": 553851, "max": 999999999, "rate": 20}
           ]
         }
       }
     },
+    
     "depreciation": {
       "residentialRental": {
         "depreciationPeriod": 27.5,
@@ -401,24 +300,13 @@
         "section1250Property": true
       },
       "improvementCategories": {
-        "majorRenovations": {
-          "depreciationYears": 27.5,
-          "recaptureRate": 25
-        },
-        "appliances": {
-          "depreciationYears": 5,
-          "recaptureRate": 25
-        },
-        "carpeting": {
-          "depreciationYears": 5,
-          "recaptureRate": 25
-        },
-        "hvacSystem": {
-          "depreciationYears": 27.5,
-          "recaptureRate": 25
-        }
+        "majorRenovations": {"depreciationYears": 27.5, "recaptureRate": 25},
+        "appliances": {"depreciationYears": 5, "recaptureRate": 25},
+        "carpeting": {"depreciationYears": 5, "recaptureRate": 25},
+        "hvacSystem": {"depreciationYears": 27.5, "recaptureRate": 25}
       }
     },
+
     "militaryRetirement": {
       "retirementSystems": {
         "legacy": {
@@ -442,6 +330,7 @@
         "lifeExpectancy": 78
       }
     },
+
     "tsp": {
       "contributionLimits2025": {
         "employee": 23500,
@@ -482,61 +371,20 @@
         }
       },
       "allocationTargets": {
-        "aggressive": {
-          "cFund": 70,
-          "sFund": 20,
-          "iFund": 10,
-          "fFund": 0,
-          "gFund": 0
-        },
-        "moderate": {
-          "cFund": 50,
-          "sFund": 15,
-          "iFund": 15,
-          "fFund": 15,
-          "gFund": 5
-        },
-        "conservative": {
-          "cFund": 20,
-          "sFund": 10,
-          "iFund": 10,
-          "fFund": 40,
-          "gFund": 20
-        }
+        "aggressive": {"cFund": 70, "sFund": 20, "iFund": 10, "fFund": 0, "gFund": 0},
+        "moderate": {"cFund": 50, "sFund": 15, "iFund": 15, "fFund": 15, "gFund": 5},
+        "conservative": {"cFund": 20, "sFund": 10, "iFund": 10, "fFund": 40, "gFund": 20}
       }
     },
+
     "sbp": {
       "costByPayGrade": {
-        "E1-E4": {
-          "baseAmount": 1500,
-          "maxCoverage": 1500,
-          "premiumRate": 6.5
-        },
-        "E5-E6": {
-          "baseAmount": 2000,
-          "maxCoverage": 2500,
-          "premiumRate": 6.5
-        },
-        "E7-E9": {
-          "baseAmount": 3000,
-          "maxCoverage": 4000,
-          "premiumRate": 6.5
-        },
-        "O1-O3": {
-          "baseAmount": 2500,
-          "maxCoverage": 3500,
-          "premiumRate": 6.5
-        },
-        "O4-O6": {
-          "baseAmount": 4000,
-          "maxCoverage": 6000,
-          "premiumRate": 6.5
-        },
-        "O7-O10": {
-          "baseAmount": 6000,
-          "maxCoverage": 10000,
-          "premiumRate": 6.5
-        }
+        "E1-E4": {"baseAmount": 1500, "maxCoverage": 1500, "premiumRate": 6.5},
+        "E5-E6": {"baseAmount": 2000, "maxCoverage": 2500, "premiumRate": 6.5},
+        "E7-E9": {"baseAmount": 3000, "maxCoverage": 4000, "premiumRate": 6.5},
+        "O1-O3": {"baseAmount": 2500, "maxCoverage": 3500, "premiumRate": 6.5},
+        "O4-O6": {"baseAmount": 4000, "maxCoverage": 6000, "premiumRate": 6.5},
+        "O7-O10": {"baseAmount": 6000, "maxCoverage": 10000, "premiumRate": 6.5}
       },
       "benefitPercentages": {
         "spouse": 55,
@@ -549,50 +397,19 @@
         "over65": -10
       }
     },
+
     "lifeInsurance": {
       "termRates": {
-        "age25": {
-          "250k": 15,
-          "500k": 25,
-          "1000k": 45
-        },
-        "age35": {
-          "250k": 18,
-          "500k": 32,
-          "1000k": 58
-        },
-        "age45": {
-          "250k": 35,
-          "500k": 65,
-          "1000k": 125
-        },
-        "age55": {
-          "250k": 85,
-          "500k": 165,
-          "1000k": 325
-        }
+        "age25": {"250k": 15, "500k": 25, "1000k": 45},
+        "age35": {"250k": 18, "500k": 32, "1000k": 58},
+        "age45": {"250k": 35, "500k": 65, "1000k": 125},
+        "age55": {"250k": 85, "500k": 165, "1000k": 325}
       },
       "wholeLifeRates": {
-        "age25": {
-          "250k": 180,
-          "500k": 350,
-          "1000k": 695
-        },
-        "age35": {
-          "250k": 250,
-          "500k": 485,
-          "1000k": 965
-        },
-        "age45": {
-          "250k": 385,
-          "500k": 765,
-          "1000k": 1525
-        },
-        "age55": {
-          "250k": 685,
-          "500k": 1365,
-          "1000k": 2725
-        }
+        "age25": {"250k": 180, "500k": 350, "1000k": 695},
+        "age35": {"250k": 250, "500k": 485, "1000k": 965},
+        "age45": {"250k": 385, "500k": 765, "1000k": 1525},
+        "age55": {"250k": 685, "500k": 1365, "1000k": 2725}
       },
       "sgli": {
         "maxCoverage": 500000,
@@ -601,6 +418,7 @@
         "familyPremium": 5.50
       }
     },
+
     "giBill": {
       "postGiHousingStipen": {
         "inPersonFullTime": 1.0,
