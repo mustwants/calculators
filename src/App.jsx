@@ -40,6 +40,58 @@ function App() {
         </ErrorBoundary>
       </main>
 
+      {/* Features Section - Moved below calculator */}
+      <section className="bg-white py-8 border-t border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">
+              Military-Focused Financial Tools
+            </h2>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              Built by veterans for military families making PCS moves and housing decisions.
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">50</div>
+              <div className="text-sm text-gray-600">States Supported</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">100%</div>
+              <div className="text-sm text-gray-600">Military Focused</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">Free</div>
+              <div className="text-sm text-gray-600">Always Free</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">24/7</div>
+              <div className="text-sm text-gray-600">Available</div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-500">
+            <span className="flex items-center space-x-1 bg-gray-50 px-3 py-1 rounded-full">
+              <span role="img" aria-label="checkmark">✅</span>
+              <span>VA Loan Optimized</span>
+            </span>
+            <span className="flex items-center space-x-1 bg-gray-50 px-3 py-1 rounded-full">
+              <span role="img" aria-label="checkmark">✅</span>
+              <span>BAH Integrated</span>
+            </span>
+            <span className="flex items-center space-x-1 bg-gray-50 px-3 py-1 rounded-full">
+              <span role="img" aria-label="checkmark">✅</span>
+              <span>PCS Ready</span>
+            </span>
+            <span className="flex items-center space-x-1 bg-gray-50 px-3 py-1 rounded-full">
+              <span role="img" aria-label="checkmark">✅</span>
+              <span>SDVOSB Certified</span>
+            </span>
+          </div>
+        </div>
+      </section>
+
       {/* SEO Content Section */}
       <section className="bg-white py-12 border-t border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
