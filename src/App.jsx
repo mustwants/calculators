@@ -7,13 +7,15 @@ import RentCalculator from './RentCalculator';
 import BuyVsRentCalculator from './BuyVsRentCalculator';
 import BAHCalculator from './BAHCalculator';
 import PropertyTaxCalculator from './PropertyTaxCalculator';
+import PCSDeductionCalculator from './PCSDeductionCalculator';
 import { ErrorBoundary } from './ErrorBoundary';
 
 const calculators = [
+  { name: 'PCS Deduction', component: PCSDeductionCalculator, icon: '🎖️' },
   { name: 'VA Mortgage', component: MortgageCalculator, icon: '🏠' },
   { name: 'Rent Analysis', component: RentCalculator, icon: '🏢' },
   { name: 'Buy vs Rent', component: BuyVsRentCalculator, icon: '⚖️' },
-  { name: 'BAH Calculator', component: BAHCalculator, icon: '🎖️' },
+  { name: 'BAH Calculator', component: BAHCalculator, icon: '💰' },
   { name: 'Property Tax', component: PropertyTaxCalculator, icon: '📊' },
 ];
 

@@ -1,0 +1,222 @@
+{
+  "lastUpdated": "2025-09-21",
+  "sources": {
+    "hudRent": "HUD Fair Market Rent 2025",
+    "propertyTax": "Tax Foundation Property Tax Analysis",
+    "mortgageRates": "Freddie Mac Primary Mortgage Market Survey",
+    "maintenance": "National Association of Home Builders",
+    "utilities": "U.S. Energy Information Administration",
+    "vaLoan": "VA Lender Handbook",
+    "bah": "DoD BAH Calculator 2025"
+  },
+  
+  "housing": {
+    "nationalAverages": {
+      "propertyTaxRate": 1.1,
+      "homeMaintenancePercent": 1.0,
+      "homeInsuranceRate": 0.35,
+      "pmiRate": 0.5,
+      "vacancyRate": 6.5,
+      "appreciationRate": 3.5,
+      "inflationRate": 2.8
+    },
+    
+    "rentByBedrooms": {
+      "studio": 1250,
+      "oneBedroom": 1450,
+      "twoBedroom": 1750,
+      "threeBedroom": 2100,
+      "fourBedroom": 2500,
+      "fivePlusBedroom": 2950
+    },
+    
+    "utilityAverages": {
+      "electric": 125,
+      "gas": 85,
+      "water": 45,
+      "internet": 65,
+      "total": 320
+    }
+  },
+  
+  "mortgageRates": {
+    "conventional30Year": 7.25,
+    "conventional15Year": 6.75,
+    "vaLoan30Year": 6.85,
+    "vaLoan15Year": 6.35,
+    "jumboLoan": 7.45,
+    "fhaLoan": 7.15
+  },
+  
+  "vaLoanData": {
+    "fundingFeeRates": {
+      "firstTimeNone": 2.15,
+      "firstTime5Percent": 1.5,
+      "firstTime10Percent": 1.25,
+      "subsequentNone": 3.3,
+      "subsequent5Percent": 1.5,
+      "subsequent10Percent": 1.25,
+      "irrrlRefinance": 0.5
+    },
+    "loanLimits": {
+      "conformingLimit": 766200,
+      "highCostAreaLimit": 1149825,
+      "noDownPaymentLimit": 766200
+    },
+    "exemptions": {
+      "disabilityExempt": true,
+      "purpleHeartExempt": true,
+      "survivingSpouseExempt": true
+    }
+  },
+  
+  "pcsSpecific": {
+    "averagePcsCycle": 36,
+    "movingCosts": {
+      "ppm": 15000,
+      "governmentMove": 8000,
+      "temporaryLodging": 3500,
+      "househunting": 2500
+    },
+    "sellingCosts": {
+      "realtorCommission": 6.0,
+      "closingCosts": 1.5,
+      "repairs": 2.0,
+      "staging": 0.5
+    }
+  },
+  
+  "militaryPayData": {
+    "averageBahByRank": {
+      "E1-E3": 1200,
+      "E4-E6": 1500,
+      "E7-E9": 1800,
+      "O1-O3": 1600,
+      "O4-O6": 2100,
+      "O7-O10": 2800
+    },
+    "colaAverages": {
+      "conus": 0,
+      "overseas": 8.5,
+      "highCost": 12.3,
+      "remote": 15.8
+    },
+    "specialPay": {
+      "hazardDuty": 225,
+      "flightPay": 250,
+      "subPay": 425,
+      "divePay": 340
+    }
+  },
+  
+  "taxData": {
+    "federalTaxBrackets": [
+      { "min": 0, "max": 11000, "rate": 10 },
+      { "min": 11000, "max": 44725, "rate": 12 },
+      { "min": 44725, "max": 95375, "rate": 22 },
+      { "min": 95375, "max": 182050, "rate": 24 },
+      { "min": 182050, "max": 231250, "rate": 32 },
+      { "min": 231250, "max": 578125, "rate": 35 },
+      { "min": 578125, "max": 999999999, "rate": 37 }
+    ],
+    "standardDeduction": {
+      "single": 13850,
+      "marriedJoint": 27700,
+      "marriedSeparate": 13850,
+      "headOfHousehold": 20800
+    },
+    "capitalGainsRates": {
+      "shortTerm": "ordinaryIncome",
+      "longTermLow": 0,
+      "longTermMid": 15,
+      "longTermHigh": 20
+    },
+    "homeownerDeductions": {
+      "mortgageInterestLimit": 750000,
+      "saltDeductionLimit": 10000,
+      "capitalGainsExclusion": {
+        "single": 250000,
+        "married": 500000
+      }
+    }
+  },
+  
+  "costOfLivingByState": {
+    "Alabama": { "index": 88.5, "housing": 79.2, "utilities": 95.8 },
+    "Alaska": { "index": 127.1, "housing": 134.3, "utilities": 169.0 },
+    "Arizona": { "index": 106.9, "housing": 110.6, "utilities": 102.3 },
+    "California": { "index": 151.7, "housing": 196.5, "utilities": 122.4 },
+    "Colorado": { "index": 110.5, "housing": 128.1, "utilities": 98.2 },
+    "Florida": { "index": 103.1, "housing": 108.4, "utilities": 107.2 },
+    "Georgia": { "index": 93.4, "housing": 89.2, "utilities": 103.8 },
+    "Hawaii": { "index": 184.5, "housing": 258.2, "utilities": 168.9 },
+    "Texas": { "index": 93.9, "housing": 90.7, "utilities": 107.1 },
+    "Virginia": { "index": 106.7, "housing": 111.8, "utilities": 102.5 },
+    "Washington": { "index": 115.4, "housing": 130.2, "utilities": 89.1 }
+  },
+  
+  "militaryBasesData": {
+    "majorBases": {
+      "fortLiberty": {
+        "state": "North Carolina",
+        "costIndex": 94.2,
+        "averageBah": 1450,
+        "localRentIndex": 92.1
+      },
+      "fortCavazos": {
+        "state": "Texas", 
+        "costIndex": 89.7,
+        "averageBah": 1380,
+        "localRentIndex": 88.5
+      },
+      "pentagonArea": {
+        "state": "Virginia",
+        "costIndex": 125.8,
+        "averageBah": 2150,
+        "localRentIndex": 134.2
+      },
+      "sandiegoBases": {
+        "state": "California",
+        "costIndex": 164.2,
+        "averageBah": 2850,
+        "localRentIndex": 187.3
+      }
+    }
+  },
+  
+  "calculatorDefaults": {
+    "pcsDeduction": {
+      "grossIncome": 75000,
+      "bah": 1500,
+      "pcsTimeframe": 36,
+      "filingStatus": "marriedJoint",
+      "hasChildren": true,
+      "homePrice": 350000,
+      "downPayment": 20
+    },
+    "buyVsRent": {
+      "homePrice": 350000,
+      "downPayment": 20,
+      "rentPrice": 1750,
+      "pcsTimeframe": 36,
+      "loanType": "va",
+      "includeMaintenance": true
+    },
+    "vaLoanCalculator": {
+      "loanAmount": 280000,
+      "downPayment": 0,
+      "loanTerm": 30,
+      "veteranType": "firstTime",
+      "disabilityRating": 0,
+      "fundingFeeFinanced": true
+    },
+    "colaPcsTool": {
+      "currentBase": "fortLiberty",
+      "targetBase": "sandiegoBases",
+      "rank": "E5",
+      "dependents": 2,
+      "currentBah": 1450,
+      "targetBah": 2850
+    }
+  }
+}
