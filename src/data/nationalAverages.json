@@ -18,7 +18,11 @@
       "pmiRate": 0.5,
       "vacancyRate": 6.5,
       "appreciationRate": 3.5,
-      "inflationRate": 2.8
+      "inflationRate": 2.8,
+      "rentalVacancyRate": 6.8,
+      "propertyManagementFee": 8.0,
+      "capitalExReserve": 5.0,
+      "tenantTurnoverCost": 1500
     },
     
     "rentByBedrooms": {
@@ -45,7 +49,44 @@
     "vaLoan30Year": 6.85,
     "vaLoan15Year": 6.35,
     "jumboLoan": 7.45,
-    "fhaLoan": 7.15
+    "fhaLoan": 7.15,
+    "refinanceRate": 7.1,
+    "cashOutRefinance": 7.35
+  },
+
+  "phase2Data": {
+    "rentalProperty": {
+      "managementFeeRange": { "min": 6, "max": 12, "average": 8 },
+      "vacancyRateRange": { "min": 4, "max": 10, "average": 6.8 },
+      "maintenanceReserve": 1.5,
+      "capExReserve": 1.0,
+      "tenantScreeningCost": 50,
+      "averageTenantTurnover": 18,
+      "evictionCost": 3500,
+      "marketingCost": 200
+    },
+    "refinancing": {
+      "closingCostPercent": 2.5,
+      "appraisalCost": 500,
+      "titleInsurance": 1200,
+      "origination": 1.0,
+      "breakEvenMonths": 24,
+      "rateDifferenceThreshold": 0.75
+    },
+    "equityGrowth": {
+      "averageAppreciation": 3.5,
+      "appreciationRange": { "min": 2, "max": 6 },
+      "paydownAcceleration": 1.2,
+      "marketCycleDuration": 84
+    },
+    "dtiCalculations": {
+      "maxConventionalDTI": 43,
+      "maxVADTI": 41,
+      "maxFHADTI": 50,
+      "conservativeDTI": 36,
+      "housingRatioMax": 28,
+      "vaResidualIncomeMinimum": 1000
+    }
   },
   
   "vaLoanData": {
@@ -217,6 +258,190 @@
       "dependents": 2,
       "currentBah": 1450,
       "targetBah": 2850
+    }
+  },
+
+  "phase3Data": {
+    "capitalGains": {
+      "primaryResidenceExclusion": {
+        "single": 250000,
+        "marriedFilingJointly": 500000,
+        "qualificationPeriod": 24,
+        "ownershipRequirement": 24,
+        "useTest": 24,
+        "pcsExtension": 60,
+        "maxPcsExtensions": 10
+      },
+      "capitalGainsTaxRates": {
+        "shortTerm": {
+          "description": "Taxed as ordinary income",
+          "rates": [10, 12, 22, 24, 32, 35, 37]
+        },
+        "longTerm": {
+          "single": [
+            {"min": 0, "max": 44625, "rate": 0},
+            {"min": 44626, "max": 492300, "rate": 15},
+            {"min": 492301, "max": 999999999, "rate": 20}
+          ],
+          "marriedFilingJointly": [
+            {"min": 0, "max": 89250, "rate": 0},
+            {"min": 89251, "max": 553850, "rate": 15},
+            {"min": 553851, "max": 999999999, "rate": 20}
+          ]
+        }
+      }
+    },
+    
+    "depreciation": {
+      "residentialRental": {
+        "depreciationPeriod": 27.5,
+        "commercialPeriod": 39,
+        "recaptureRate": 25,
+        "section1250Property": true
+      },
+      "improvementCategories": {
+        "majorRenovations": {"depreciationYears": 27.5, "recaptureRate": 25},
+        "appliances": {"depreciationYears": 5, "recaptureRate": 25},
+        "carpeting": {"depreciationYears": 5, "recaptureRate": 25},
+        "hvacSystem": {"depreciationYears": 27.5, "recaptureRate": 25}
+      }
+    },
+
+    "militaryRetirement": {
+      "retirementSystems": {
+        "legacy": {
+          "multiplier": 0.025,
+          "yearsRequired": 20,
+          "vestingSchedule": "cliff",
+          "colaAdjustment": true
+        },
+        "brs": {
+          "multiplier": 0.02,
+          "yearsRequired": 20,
+          "vestingSchedule": "graded",
+          "automaticContribution": 0.01,
+          "matchingContribution": 0.04,
+          "continuationPay": 2.5
+        }
+      },
+      "averageRetirementAge": {
+        "enlisted": 42,
+        "officer": 45,
+        "lifeExpectancy": 78
+      }
+    },
+
+    "tsp": {
+      "contributionLimits2025": {
+        "employee": 23500,
+        "catchUp": 7500,
+        "totalWithCatchUp": 31000,
+        "employerMatch": 5
+      },
+      "historicalReturns": {
+        "cFund": {
+          "average20Year": 10.2,
+          "average10Year": 11.8,
+          "average5Year": 9.4,
+          "standardDeviation": 16.2
+        },
+        "sFund": {
+          "average20Year": 8.9,
+          "average10Year": 10.1,
+          "average5Year": 7.8,
+          "standardDeviation": 20.4
+        },
+        "iFund": {
+          "average20Year": 7.2,
+          "average10Year": 6.8,
+          "average5Year": 5.9,
+          "standardDeviation": 18.7
+        },
+        "fFund": {
+          "average20Year": 5.1,
+          "average10Year": 3.2,
+          "average5Year": 2.8,
+          "standardDeviation": 4.2
+        },
+        "gFund": {
+          "average20Year": 2.8,
+          "average10Year": 2.1,
+          "average5Year": 1.9,
+          "standardDeviation": 0.8
+        }
+      },
+      "allocationTargets": {
+        "aggressive": {"cFund": 70, "sFund": 20, "iFund": 10, "fFund": 0, "gFund": 0},
+        "moderate": {"cFund": 50, "sFund": 15, "iFund": 15, "fFund": 15, "gFund": 5},
+        "conservative": {"cFund": 20, "sFund": 10, "iFund": 10, "fFund": 40, "gFund": 20}
+      }
+    },
+
+    "sbp": {
+      "costByPayGrade": {
+        "E1-E4": {"baseAmount": 1500, "maxCoverage": 1500, "premiumRate": 6.5},
+        "E5-E6": {"baseAmount": 2000, "maxCoverage": 2500, "premiumRate": 6.5},
+        "E7-E9": {"baseAmount": 3000, "maxCoverage": 4000, "premiumRate": 6.5},
+        "O1-O3": {"baseAmount": 2500, "maxCoverage": 3500, "premiumRate": 6.5},
+        "O4-O6": {"baseAmount": 4000, "maxCoverage": 6000, "premiumRate": 6.5},
+        "O7-O10": {"baseAmount": 6000, "maxCoverage": 10000, "premiumRate": 6.5}
+      },
+      "benefitPercentages": {
+        "spouse": 55,
+        "children": 55,
+        "spouseAndChildren": 55
+      },
+      "ageAdjustments": {
+        "under62": 0,
+        "62to65": -5,
+        "over65": -10
+      }
+    },
+
+    "lifeInsurance": {
+      "termRates": {
+        "age25": {"250k": 15, "500k": 25, "1000k": 45},
+        "age35": {"250k": 18, "500k": 32, "1000k": 58},
+        "age45": {"250k": 35, "500k": 65, "1000k": 125},
+        "age55": {"250k": 85, "500k": 165, "1000k": 325}
+      },
+      "wholeLifeRates": {
+        "age25": {"250k": 180, "500k": 350, "1000k": 695},
+        "age35": {"250k": 250, "500k": 485, "1000k": 965},
+        "age45": {"250k": 385, "500k": 765, "1000k": 1525},
+        "age55": {"250k": 685, "500k": 1365, "1000k": 2725}
+      },
+      "sgli": {
+        "maxCoverage": 500000,
+        "monthlyPremium": 29,
+        "familySgli": 100000,
+        "familyPremium": 5.50
+      }
+    },
+
+    "giBill": {
+      "postGiHousingStipen": {
+        "inPersonFullTime": 1.0,
+        "inPersonThreeQuarter": 0.8,
+        "inPersonHalfTime": 0.4,
+        "onlineOnly": 906.50,
+        "yellowRibbonProgram": true
+      },
+      "tuitionRates2025": {
+        "publicInState": 25290,
+        "publicOutOfState": 45240,
+        "private": 55800,
+        "maxPrivatePayment": 26381.37
+      },
+      "entitlementMonths": {
+        "full": 36,
+        "stemExtension": 9,
+        "restorationEligible": true
+      },
+      "bookStipend": {
+        "maxAnnual": 1000,
+        "proRated": true
+      }
     }
   }
 }

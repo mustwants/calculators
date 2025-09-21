@@ -8,15 +8,38 @@ import BuyVsRentCalculator from './BuyVsRentCalculator';
 import BAHCalculator from './BAHCalculator';
 import PropertyTaxCalculator from './PropertyTaxCalculator';
 import PCSDeductionCalculator from './PCSDeductionCalculator';
+import EquityGrowthCalculator from './EquityGrowthCalculator';
+import LandlordProfitabilityTool from './LandlordProfitabilityTool';
+import RefinanceVsPCSSellTool from './RefinanceVsPCSSellTool';
+import DTIBAHCalculator from './DTIBAHCalculator';
+import CapitalGainsExclusionCalculator from './CapitalGainsExclusionCalculator';
+import DepreciationRecaptureEstimator from './DepreciationRecaptureEstimator';
+import MilitaryRetirementTSPTool from './MilitaryRetirementTSPTool';
+import SBPVsLifeInsuranceCalculator from './SBPVsLifeInsuranceCalculator';
+import GIBillHousingStipendEstimator from './GIBillHousingStipendEstimator';
 import { ErrorBoundary } from './ErrorBoundary';
 
 const calculators = [
-  { name: 'PCS Deduction', component: PCSDeductionCalculator, icon: '🎖️' },
-  { name: 'VA Mortgage', component: MortgageCalculator, icon: '🏠' },
-  { name: 'Rent Analysis', component: RentCalculator, icon: '🏢' },
-  { name: 'Buy vs Rent', component: BuyVsRentCalculator, icon: '⚖️' },
-  { name: 'BAH Calculator', component: BAHCalculator, icon: '💰' },
-  { name: 'Property Tax', component: PropertyTaxCalculator, icon: '📊' },
+  // Phase 1: Military Basics
+  { name: 'PCS Deduction', component: PCSDeductionCalculator, icon: '🎖️', phase: 1 },
+  { name: 'VA Mortgage', component: MortgageCalculator, icon: '🏠', phase: 1 },
+  { name: 'Rent Analysis', component: RentCalculator, icon: '🏢', phase: 1 },
+  { name: 'Buy vs Rent', component: BuyVsRentCalculator, icon: '⚖️', phase: 1 },
+  { name: 'BAH Calculator', component: BAHCalculator, icon: '💰', phase: 1 },
+  { name: 'Property Tax', component: PropertyTaxCalculator, icon: '📊', phase: 1 },
+  
+  // Phase 2: Real Estate & Investment
+  { name: 'Equity Growth', component: EquityGrowthCalculator, icon: '📈', phase: 2 },
+  { name: 'Landlord Profit', component: LandlordProfitabilityTool, icon: '🏠', phase: 2 },
+  { name: 'Refinance vs Sell', component: RefinanceVsPCSSellTool, icon: '🏠↔️', phase: 2 },
+  { name: 'DTI + BAH', component: DTIBAHCalculator, icon: '💰📊', phase: 2 },
+  
+  // Phase 3: Tax & Retirement Planning
+  { name: 'Capital Gains', component: CapitalGainsExclusionCalculator, icon: '📊💰', phase: 3 },
+  { name: 'Depreciation', component: DepreciationRecaptureEstimator, icon: '🏠📉', phase: 3 },
+  { name: 'TSP & Retirement', component: MilitaryRetirementTSPTool, icon: '💰🎖️', phase: 3 },
+  { name: 'SBP vs Insurance', component: SBPVsLifeInsuranceCalculator, icon: '🛡️💰', phase: 3 },
+  { name: 'GI Bill Housing', component: GIBillHousingStipendEstimator, icon: '🎓💰', phase: 3 },
 ];
 
 function App() {
@@ -33,8 +56,8 @@ function App() {
         selectedCalculator={selected}
       />
       
-      {/* Calculator Content */}
-      <main role="main" className="pb-12">
+      {/* Calculator Content - Immediate Start */}
+      <main role="main" className="pt-2 pb-12">
         <ErrorBoundary>
           <SelectedComponent />
         </ErrorBoundary>
