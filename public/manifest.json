@@ -1,11 +1,11 @@
-// File: /public/manifest.json
 {
-  "name": "MustWants Real Estate Calculator",
-  "short_name": "MW Calculator",
+  "name": "VetMover - Military Real Estate Calculators",
+  "short_name": "VetMover",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2563eb",
+  "description": "Real estate calculators for military families",
   "icons": [
     {
       "src": "favicon.ico",
