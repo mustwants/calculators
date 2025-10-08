@@ -17,11 +17,7 @@ import DepreciationRecaptureEstimator from './DepreciationRecaptureEstimator';
 import MilitaryRetirementTSPTool from './MilitaryRetirementTSPTool';
 import SBPVsLifeInsuranceCalculator from './SBPVsLifeInsuranceCalculator';
 import GIBillHousingStipendEstimator from './GIBillHousingStipendEstimator';
-<<<<<<< HEAD
 import SBPDecisionCalculator from './SBPDecisionCalculator';
-=======
-import SBPDecisionCalculator from './components/SBPDecisionCalculator';
->>>>>>> 962613f (remove .nvmrc to allow Netlify Node 20.19)
 import { ErrorBoundary } from './ErrorBoundary';
 
 const calculators = [
