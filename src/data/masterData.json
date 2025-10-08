@@ -1,0 +1,52 @@
+{
+  "version": "2025.1",
+  "lastUpdated": "2025-10-08T21:28:39.881Z",
+  "basePay": {},
+  "disability": [
+    {
+      "rating": 10,
+      "monthly": 171
+    },
+    {
+      "rating": 20,
+      "monthly": 338
+    },
+    {
+      "rating": 30,
+      "monthly": 524
+    },
+    {
+      "rating": 40,
+      "monthly": 755
+    },
+    {
+      "rating": 50,
+      "monthly": 1075
+    },
+    {
+      "rating": 60,
+      "monthly": 1361
+    },
+    {
+      "rating": 70,
+      "monthly": 1716
+    },
+    {
+      "rating": 80,
+      "monthly": 1995
+    },
+    {
+      "rating": 90,
+      "monthly": 2241
+    },
+    {
+      "rating": 100,
+      "monthly": 3737
+    }
+  ],
+  "sbpGuidance": {
+    "PremiumRate": "6.5%",
+    "PaidUpAfter": "30 years or age 70, whichever later",
+    "SurvivorBenefit": "55% of base pay for life"
+  }
+}
