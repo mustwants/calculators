@@ -17,6 +17,7 @@ import DepreciationRecaptureEstimator from './DepreciationRecaptureEstimator';
 import MilitaryRetirementTSPTool from './MilitaryRetirementTSPTool';
 import SBPVsLifeInsuranceCalculator from './SBPVsLifeInsuranceCalculator';
 import GIBillHousingStipendEstimator from './GIBillHousingStipendEstimator';
+import SBPDecisionCalculator from './components/SBPDecisionCalculator';
 import { ErrorBoundary } from './ErrorBoundary';
 
 const calculators = [
