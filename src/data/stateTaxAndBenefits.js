@@ -1,4 +1,7 @@
-{
+// PATH: src/data/stateTaxAndBenefits.js
+// Auto-generated. Edit the source JSON/JS and re-run: npm run fix:state-data
+
+const DATA = {
   "version": "2025.1",
   "lastUpdated": "2025-10-08T00:00:00Z",
   "states": {
@@ -33,7 +36,7 @@
     "VA": {
       "name": "Virginia",
       "incomeTax": 5.75,
-      "propertyTax": 0.80,
+      "propertyTax": 0.8,
       "militaryRetirementTaxed": true,
       "disabilityTaxed": false,
       "sbpTaxed": true,
@@ -73,4 +76,6 @@
       }
     }
   }
-}
+};
+
+export default DATA;
