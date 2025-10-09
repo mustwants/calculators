@@ -22,7 +22,7 @@ import { listStateOptions, getState } from "./utils/loadStateTaxData";
  * Notes:
  * - BAH varies by ZIP, paygrade, and with/without dependents. This tool
  *   lets the user enter BAH directly or estimate with a quick rule.
- * - State tax rates are pulled from stateTaxAndBenefits.json when available
+ * - State tax rates are pulled from stateTaxAndBenefits.js when available
  *   and used only on taxable income (not on BAH/BAS).
  */
 

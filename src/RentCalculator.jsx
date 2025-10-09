@@ -10,7 +10,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import stateTaxAndBenefits from "./data/stateTaxAndBenefits.json";
+import stateTaxAndBenefits from "./data/stateTaxAndBenefits.js";
 
 ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
