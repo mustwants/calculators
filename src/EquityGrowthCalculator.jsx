@@ -1,279 +1,333 @@
 // PATH: src/EquityGrowthCalculator.jsx
 import React, { useMemo, useState } from "react";
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, Legend } from "recharts";
-import { listStateOptions } from "./utils/loadStateTaxData";
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Legend, Area, AreaChart } from "recharts";
 
-function pmt(ratePct, years, principal) {
-  const r = (ratePct / 100) / 12;
-  const n = years * 12;
-  if (r === 0) return principal / n;
-  return (r * principal) / (1 - Math.pow(1 + r, -n));
+/**
+ * Equity Growth Calculator
+ * Models amortization + appreciation and shows equity by year.
+ * Assumptions:
+ * - Fixed-rate, fully-amortizing loan.
+ * - PMI optional; drops when LTV ≤ 80%.
+ * - Property tax, insurance, HOA are not part of equity but help user context.
+ * - Selling cost toggle to preview net-at-sale.
+ * This is planning-only. Not advice.
+ */
+
+function pct(x) {
+  const n = Number(x);
+  return Number.isFinite(n) ? n / 100 : 0;
+}
+function currency(n) {
+  return `$${Math.round(n).toLocaleString()}`;
+}
+function clamp(n, lo, hi) {
+  return Math.min(Math.max(n, lo), hi);
 }
 
 export default function EquityGrowthCalculator() {
-  // State (for context only)
-  const states = useMemo(() => listStateOptions(), []);
-  const [stateCode, setStateCode] = useState("VA");
-
-  // Inputs
-  const [price, setPrice] = useState(450000);
+  // Price & financing
+  const [price, setPrice] = useState(450_000);
   const [downPct, setDownPct] = useState(5);
-  const [ratePct, setRatePct] = useState(6.5);
-  const [termYrs, setTermYrs] = useState(30);
-  const [yearsHorizon, setYearsHorizon] = useState(10);
+  const [ratePct, setRatePct] = useState(6.25);
+  const [termYears, setTermYears] = useState(30);
 
+  // Costs and assumptions
   const [annualAppreciationPct, setAnnualAppreciationPct] = useState(3.0);
-  const [extraPrincipalMonthly, setExtraPrincipalMonthly] = useState(0);
-  const [sellCostPct, setSellCostPct] = useState(6); // for “sell today” equity net
+  const [annualTaxPct, setAnnualTaxPct] = useState(1.0);
+  const [annualInsurancePct, setAnnualInsurancePct] = useState(0.35);
+  const [monthlyHOA, setMonthlyHOA] = useState(0);
 
-  // Derived
-  const downPayment = Math.max(0, price * (downPct / 100));
-  const loanAmt = Math.max(0, price - downPayment);
-  const basePI = pmt(ratePct, termYrs, loanAmt);
-  const monthlyRate = (ratePct / 100) / 12;
-  const apprMonthly = 1 + (annualAppreciationPct / 100) / 12;
+  // PMI
+  const [hasPMI, setHasPMI] = useState(true);
+  const [pmiPctAnnual, setPmiPctAnnual] = useState(0.6); // of original loan balance annually until 80% LTV
 
-  const { chart, last } = useMemo(() => {
-    let bal = loanAmt;
-    let homeVal = price;
+  // Exit planning
+  const [showSellingCost, setShowSellingCost] = useState(true);
+  const [sellingCostPct, setSellingCostPct] = useState(7);
+
+  // Derived financing
+  const downPayment = price * pct(downPct);
+  const loanAmount = Math.max(0, price - downPayment);
+  const r = pct(ratePct) / 12;
+  const n = termYears * 12;
+  const monthlyPI =
+    r === 0 ? loanAmount / n : (loanAmount * r) / (1 - Math.pow(1 + r, -n));
+
+  // Yearly projection
+  const series = useMemo(() => {
     const rows = [];
-    let cumPrincipal = 0;
+    let bal = loanAmount;
+    let homeValue = price;
+    let months = 0;
 
-    for (let m = 1; m <= yearsHorizon * 12; m++) {
-      // interest and principal split
-      const interest = monthlyRate > 0 ? bal * monthlyRate : 0;
-      let principal = Math.min(bal, basePI - interest);
-      if (extraPrincipalMonthly > 0 && bal - principal > 0) {
-        const extra = Math.min(extraPrincipalMonthly, bal - principal);
-        principal += extra;
+    const monthlyTax = (price * pct(annualTaxPct)) / 12; // start estimate
+    const monthlyIns = (price * pct(annualInsurancePct)) / 12;
+
+    while (months <= n) {
+      // recompute PMI monthly on original balance proxy until LTV <= 80%
+      const LTV = bal / homeValue;
+      const pmiMonthly =
+        hasPMI && LTV > 0.80 ? (loanAmount * pct(pmiPctAnnual)) / 12 : 0;
+
+      // amortize one month (skip at month 0)
+      if (months > 0) {
+        const interest = bal * r;
+        const principal = Math.min(bal, monthlyPI - interest);
+        bal = Math.max(0, bal - principal);
       }
-      bal = Math.max(0, bal - principal);
-      cumPrincipal += principal;
 
-      // home value growth
-      homeVal = homeVal * apprMonthly;
+      // appreciation yearly at month 12; but to smooth chart we apply per month compounding
+      if (months > 0) {
+        const apr = pct(annualAppreciationPct);
+        const mApp = Math.pow(1 + apr, 1 / 12) - 1;
+        homeValue *= 1 + mApp;
+      }
 
-      if (m % 12 === 0 || m === yearsHorizon * 12) {
-        const equity = Math.max(0, homeVal - bal);
-        const netIfSold = Math.max(0, homeVal * (1 - sellCostPct / 100) - bal);
+      const equity = Math.max(0, homeValue - bal);
+      const year = Math.floor(months / 12);
+
+      // collect once per year or for month 0 and final month
+      const isYearPoint = months % 12 === 0 || months === n;
+      if (isYearPoint) {
+        const taxes = (homeValue * pct(annualTaxPct));
+        const insurance = (homeValue * pct(annualInsurancePct));
+        const carrying = taxes + insurance + monthlyHOA * 12; // context only
+
+        const sellCost = showSellingCost ? homeValue * pct(sellingCostPct) : 0;
+        const netAtSale = Math.max(0, homeValue - bal - sellCost);
+
         rows.push({
-          month: m,
-          year: (m / 12).toFixed(1),
-          Home_Value: homeVal,
-          Loan_Balance: bal,
-          Equity: equity,
-          Net_If_Sold: netIfSold,
-          Principal_Paid: cumPrincipal
+          year,
+          homeValue: Math.round(homeValue),
+          balance: Math.round(bal),
+          equity: Math.round(equity),
+          netAtSale: Math.round(netAtSale),
+          carrying: Math.round(carrying),
+          LTV: clamp(LTV * 100, 0, 100)
         });
       }
-      if (bal <= 0) {
-        // fill remaining annual points with flat balance if horizon extends past payoff
-        // equity and netIfSold will keep tracking appreciation
+
+      months += 1;
+      if (bal <= 0 && months % 12 === 0) {
+        // paid off; extend one more annual point then stop
+        if (rows.length && rows[rows.length - 1].balance === 0) break;
       }
     }
-    const lastRow = rows[rows.length - 1] || {
-      Home_Value: price,
-      Loan_Balance: loanAmt,
-      Equity: price - loanAmt,
-      Net_If_Sold: price * (1 - sellCostPct / 100) - loanAmt,
-      Principal_Paid: 0
-    };
-    return { chart: rows, last: lastRow };
-  }, [loanAmt, price, yearsHorizon, basePI, monthlyRate, apprMonthly, extraPrincipalMonthly, sellCostPct]);
+
+    return rows;
+  }, [
+    loanAmount,
+    price,
+    n,
+    annualAppreciationPct,
+    annualInsurancePct,
+    annualTaxPct,
+    monthlyHOA,
+    hasPMI,
+    pmiPctAnnual
+  ]);
+
+  const last = series[series.length - 1] || {};
+  const year10 = series.find((r) => r.year === 10) || last;
+  const year5 = series.find((r) => r.year === 5) || last;
 
   return (
     <div className="max-w-6xl mx-auto my-8 p-6 bg-white rounded-2xl shadow">
       <header className="mb-6">
         <h1 className="text-2xl font-bold text-blue-800">📈 Equity Growth</h1>
         <p className="text-sm text-gray-600">
-          Projects equity from principal paydown and appreciation. Includes optional extra principal and selling cost estimate.
+          Amortization + appreciation. Track equity, balance, LTV, and estimated net at sale.
         </p>
       </header>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Column 1 */}
-        <section className="rounded-xl border p-4 space-y-4">
+      <div className="grid xl:grid-cols-4 gap-6">
+        {/* Price & financing */}
+        <section className="rounded-xl border p-4 space-y-3">
+          <h2 className="font-semibold text-gray-800">Price & Loan</h2>
           <div>
-            <label className="block text-sm font-medium text-gray-700">State (context)</label>
-            <select
-              className="mt-1 w-full rounded-md border border-gray-300 p-2 bg-white"
-              value={stateCode}
-              onChange={(e) => setStateCode(e.target.value)}
-            >
-              {states.map((s) => (
-                <option key={s.code} value={s.code}>
-                  {s.name} ({s.code})
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-gray-500">For consistency across tools. No tax applied here.</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Home Price ($)</label>
+            <label className="block text-sm font-medium text-gray-700">Purchase Price ($)</label>
             <input
-              type="number"
-              className="mt-1 w-full rounded-md border border-gray-300 p-2"
-              value={price}
-              min={0}
+              type="number" className="mt-1 w-full rounded-md border p-2"
+              value={price} min={50_000}
               onChange={(e) => setPrice(Number(e.target.value))}
             />
           </div>
-
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700">Down Payment (%)</label>
               <input
-                type="number"
-                className="mt-1 w-full rounded-md border border-gray-300 p-2"
-                value={downPct}
-                min={0}
-                max={100}
-                step="0.1"
+                type="number" className="mt-1 w-full rounded-md border p-2"
+                value={downPct} min={0} max={100} step="0.5"
                 onChange={(e) => setDownPct(Number(e.target.value))}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Term (years)</label>
+              <label className="block text-sm font-medium text-gray-700">Rate (APR %)</label>
               <input
-                type="number"
-                className="mt-1 w-full rounded-md border border-gray-300 p-2"
-                value={termYrs}
-                min={5}
-                max={40}
-                onChange={(e) => setTermYrs(Number(e.target.value))}
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* Column 2 */}
-        <section className="rounded-xl border p-4 space-y-4">
-          <h2 className="font-semibold text-gray-800">Loan & Growth</h2>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Rate (% APR)</label>
-              <input
-                type="number"
-                className="mt-1 w-full rounded-md border border-gray-300 p-2"
-                value={ratePct}
-                min={0}
-                step="0.01"
+                type="number" className="mt-1 w-full rounded-md border p-2"
+                value={ratePct} min={0} max={15} step="0.01"
                 onChange={(e) => setRatePct(Number(e.target.value))}
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Horizon (years)</label>
-              <input
-                type="number"
-                className="mt-1 w-full rounded-md border border-gray-300 p-2"
-                value={yearsHorizon}
-                min={1}
-                max={40}
-                onChange={(e) => setYearsHorizon(Number(e.target.value))}
-              />
-            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Term (years)</label>
+            <input
+              type="number" className="mt-1 w-full rounded-md border p-2"
+              value={termYears} min={5} max={40}
+              onChange={(e) => setTermYears(Number(e.target.value))}
+            />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Appreciation (%/yr)</label>
-              <input
-                type="number"
-                className="mt-1 w-full rounded-md border border-gray-300 p-2"
-                value={annualAppreciationPct}
-                min={-10}
-                max={20}
-                step="0.1"
-                onChange={(e) => setAnnualAppreciationPct(Number(e.target.value))}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Extra Principal ($/mo)</label>
-              <input
-                type="number"
-                className="mt-1 w-full rounded-md border border-gray-300 p-2"
-                value={extraPrincipalMonthly}
-                min={0}
-                onChange={(e) => setExtraPrincipalMonthly(Number(e.target.value))}
-              />
-            </div>
+          <div className="rounded-lg bg-gray-50 p-3 text-sm space-y-1">
+            <div className="flex justify-between"><span className="text-gray-600">Down Payment</span><span className="font-semibold">{currency(downPayment)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-600">Loan Amount</span><span className="font-semibold">{currency(loanAmount)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-600">P&I (monthly)</span><span className="font-semibold">{currency(monthlyPI)}</span></div>
           </div>
         </section>
 
-        {/* Column 3 */}
-        <section className="rounded-xl border p-4 space-y-4">
-          <h2 className="font-semibold text-gray-800">Selling Cost</h2>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Sell Cost (% of price)</label>
-            <input
-              type="number"
-              className="mt-1 w-full rounded-md border border-gray-300 p-2"
-              value={sellCostPct}
-              min={0}
-              max={15}
-              step="0.1"
-              onChange={(e) => setSellCostPct(Number(e.target.value))}
-            />
-            <p className="mt-1 text-xs text-gray-500">Used to estimate “Net if Sold” in each year.</p>
+        {/* Costs & PMI */}
+        <section className="rounded-xl border p-4 space-y-3">
+          <h2 className="font-semibold text-gray-800">Costs & PMI</h2>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Taxes (% of value / yr)</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border p-2"
+                value={annualTaxPct} min={0} max={5} step="0.05"
+                onChange={(e) => setAnnualTaxPct(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Insurance (% of value / yr)</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border p-2"
+                value={annualInsurancePct} min={0} max={2} step="0.05"
+                onChange={(e) => setAnnualInsurancePct(Number(e.target.value))}
+              />
+            </div>
           </div>
 
-          <div className="rounded-lg bg-gray-50 p-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Loan Amount</span>
-              <span className="font-semibold">${loanAmt.toLocaleString()}</span>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">HOA ($/mo)</label>
+            <input
+              type="number" className="mt-1 w-full rounded-md border p-2"
+              value={monthlyHOA} min={0}
+              onChange={(e) => setMonthlyHOA(Number(e.target.value))}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              id="pmi"
+              type="checkbox"
+              className="h-4 w-4"
+              checked={hasPMI}
+              onChange={(e) => setHasPMI(e.target.checked)}
+            />
+            <label htmlFor="pmi" className="text-sm text-gray-700">Apply PMI until 80% LTV</label>
+          </div>
+          {hasPMI && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700">PMI Rate (annual % of loan)</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border p-2"
+                value={pmiPctAnnual} min={0} max={2} step="0.05"
+                onChange={(e) => setPmiPctAnnual(Number(e.target.value))}
+              />
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Base P&I</span>
-              <span className="font-semibold">${basePI.toFixed(0)}/mo</span>
+          )}
+        </section>
+
+        {/* Growth & Exit */}
+        <section className="rounded-xl border p-4 space-y-3">
+          <h2 className="font-semibold text-gray-800">Growth & Exit</h2>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Annual Appreciation (%)</label>
+            <input
+              type="number" className="mt-1 w-full rounded-md border p-2"
+              value={annualAppreciationPct} min={-5} max={15} step="0.1"
+              onChange={(e) => setAnnualAppreciationPct(Number(e.target.value))}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              id="sellc"
+              type="checkbox"
+              className="h-4 w-4"
+              checked={showSellingCost}
+              onChange={(e) => setShowSellingCost(e.target.checked)}
+            />
+            <label htmlFor="sellc" className="text-sm text-gray-700">Include Selling Cost</label>
+          </div>
+          {showSellingCost && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Selling Cost (%)</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border p-2"
+                value={sellingCostPct} min={0} max={12} step="0.5"
+                onChange={(e) => setSellingCostPct(Number(e.target.value))}
+              />
             </div>
+          )}
+
+          <div className="rounded-lg bg-gray-50 p-3 text-sm space-y-1">
+            <div className="flex justify-between"><span className="text-gray-600">Equity Year 5</span><span className="font-semibold">{currency(year5.equity || 0)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-600">Equity Year 10</span><span className="font-semibold">{currency(year10.equity || 0)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-600">LTV Final</span><span className="font-semibold">{(last.LTV || 0).toFixed(1)}%</span></div>
+          </div>
+        </section>
+
+        {/* Snapshot */}
+        <section className="rounded-xl border p-4 space-y-3">
+          <h2 className="font-semibold text-gray-800">Snapshot</h2>
+          <div className="rounded-lg bg-blue-50 p-3 text-sm space-y-1">
+            <div className="flex justify-between"><span className="text-blue-900">Final Home Value</span><span className="font-semibold text-blue-900">{currency(last.homeValue || price)}</span></div>
+            <div className="flex justify-between"><span className="text-blue-900">Final Loan Balance</span><span className="font-semibold text-blue-900">{currency(last.balance || loanAmount)}</span></div>
+            <div className="flex justify-between"><span className="text-blue-900">Final Equity</span><span className="font-semibold text-blue-900">{currency(last.equity || 0)}</span></div>
+            <div className="flex justify-between"><span className="text-blue-900">Net at Sale</span><span className="font-semibold text-blue-900">{currency(last.netAtSale || 0)}</span></div>
           </div>
         </section>
       </div>
 
-      {/* Chart */}
+      {/* Equity over time */}
       <div className="mt-6 h-80 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chart}>
+          <AreaChart data={series}>
             <XAxis dataKey="year" />
             <YAxis />
-            <Tooltip formatter={(v) => `$${Math.round(v).toLocaleString()}`} />
+            <Tooltip
+              formatter={(v, n) => [currency(v), n]}
+              labelFormatter={(y) => `Year ${y}`}
+            />
             <Legend />
-            <Area type="monotone" dataKey="Home_Value" name="Home Value" stroke="#2563eb" fillOpacity={0.15} fill="#93c5fd" />
-            <Area type="monotone" dataKey="Loan_Balance" name="Loan Balance" stroke="#f97316" fillOpacity={0.12} fill="#fdba74" />
-            <Area type="monotone" dataKey="Equity" name="Equity" stroke="#16a34a" fillOpacity={0.15} fill="#86efac" />
-            <Area type="monotone" dataKey="Net_If_Sold" name="Net If Sold" stroke="#0ea5e9" fillOpacity={0.1} fill="#7dd3fc" />
+            <Area type="monotone" dataKey="homeValue" name="Home Value" fillOpacity={0.2} />
+            <Area type="monotone" dataKey="equity" name="Equity" fillOpacity={0.3} />
+            <Area type="monotone" dataKey="netAtSale" name="Net at Sale" fillOpacity={0.25} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Summary */}
-      <section className="mt-6 grid md:grid-cols-4 gap-4">
-        <div className="rounded-xl border p-4">
-          <div className="text-xs uppercase text-gray-500">Equity (Year {yearsHorizon})</div>
-          <div className="text-xl font-semibold">${(last.Equity || 0).toLocaleString()}</div>
-        </div>
-        <div className="rounded-xl border p-4">
-          <div className="text-xs uppercase text-gray-500">Net If Sold (Year {yearsHorizon})</div>
-          <div className="text-xl font-semibold">${(last.Net_If_Sold || 0).toLocaleString()}</div>
-        </div>
-        <div className="rounded-xl border p-4">
-          <div className="text-xs uppercase text-gray-500">Principal Paid</div>
-          <div className="text-xl font-semibold">${(last.Principal_Paid || 0).toLocaleString()}</div>
-        </div>
-        <div className="rounded-xl border p-4">
-          <div className="text-xs uppercase text-gray-500">Home Value (Year {yearsHorizon})</div>
-          <div className="text-xl font-semibold">${(last.Home_Value || 0).toLocaleString()}</div>
-        </div>
-      </section>
+      {/* Balance vs Value */}
+      <div className="mt-6 h-80 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={series}>
+            <XAxis dataKey="year" />
+            <YAxis />
+            <Tooltip formatter={(v, n) => [currency(v), n]} labelFormatter={(y) => `Year ${y}`} />
+            <Legend />
+            <Line type="monotone" dataKey="homeValue" name="Home Value" dot={false} />
+            <Line type="monotone" dataKey="balance" name="Loan Balance" dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
 
       <footer className="mt-6 rounded-lg bg-blue-50 p-4 text-sm text-blue-900">
         <ul className="list-disc pl-5 space-y-1">
-          <li>Equity = Home value − Loan balance. Net if Sold subtracts selling costs.</li>
-          <li>No taxes modeled here. See Capital Gains and Depreciation tools for tax impacts.</li>
-          <li>Results are estimates. Actual schedules vary with escrow, rate changes, and prepayment timing.</li>
+          <li>Equity = Home Value − Loan Balance. Net at sale subtracts selling costs.</li>
+          <li>Taxes, insurance, and HOA are context only. They do not change equity directly.</li>
+          <li>PMI drops when LTV ≤ 80%. VA loans generally do not have monthly PMI.</li>
         </ul>
       </footer>
     </div>
