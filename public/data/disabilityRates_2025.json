@@ -1,0 +1,42 @@
+[
+  {
+    "rating": 10,
+    "monthly": 171
+  },
+  {
+    "rating": 20,
+    "monthly": 338
+  },
+  {
+    "rating": 30,
+    "monthly": 524
+  },
+  {
+    "rating": 40,
+    "monthly": 755
+  },
+  {
+    "rating": 50,
+    "monthly": 1075
+  },
+  {
+    "rating": 60,
+    "monthly": 1361
+  },
+  {
+    "rating": 70,
+    "monthly": 1716
+  },
+  {
+    "rating": 80,
+    "monthly": 1995
+  },
+  {
+    "rating": 90,
+    "monthly": 2242
+  },
+  {
+    "rating": 100,
+    "monthly": 3737
+  }
+]

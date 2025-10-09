@@ -1,208 +1,152 @@
-//PATH calculators/src/SBPDecisionCalculator.jsx
-
-import React, { useState, useMemo } from "react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import masterData from "./data/masterData.json";
-
-// Insurance rates last verified: Jan 2025 (NerdWallet composite averages, 20-year term, non-smoker)
-const lifeInsuranceRates = {
-  male: [
-    { min: 30, max: 39, monthly: 23 },
-    { min: 40, max: 49, monthly: 33 },
-    { min: 50, max: 59, monthly: 73 },
-    { min: 60, max: 69, monthly: 183 },
-    { min: 70, max: 120, monthly: 395 },
-  ],
-  female: [
-    { min: 30, max: 39, monthly: 19 },
-    { min: 40, max: 49, monthly: 28 },
-    { min: 50, max: 59, monthly: 56 },
-    { min: 60, max: 69, monthly: 132 },
-    { min: 70, max: 120, monthly: 285 },
-  ],
-};
-
-function getLifeInsuranceRate(age, gender) {
-  const group = lifeInsuranceRates[gender.toLowerCase()] || [];
-  const match = group.find((g) => age >= g.min && age <= g.max);
-  return match ? match.monthly * 12 : 0; // annual cost
-}
+// PATH: src/SBPDecisionCalculator.jsx
+import React, { useEffect, useMemo, useState } from "react";
+import { loadMasterData } from "./utils/loadMasterData";
 
 export default function SBPDecisionCalculator() {
-  const [rank, setRank] = useState("E-5");
-  const [years, setYears] = useState(20);
-  const [age, setAge] = useState(45);
-  const [gender, setGender] = useState("male");
-  const [spouseAge, setSpouseAge] = useState(43);
+  const [data, setData] = useState(null);
+  const [err, setErr] = useState(null);
+
+  // Inputs
+  const [memberRank, setMemberRank] = useState("O-5");
+  const [yos, setYos] = useState(24);
+  const [memberAge, setMemberAge] = useState(47);
+  const [spouseAge, setSpouseAge] = useState(40);
+  const [coveredPct, setCoveredPct] = useState(100); // SBP base coverage percent
+  const [insPremMonthly, setInsPremMonthly] = useState(250); // commercial life premium
   const [lifeExpectancy, setLifeExpectancy] = useState(85);
-  const [insuranceAmount, setInsuranceAmount] = useState(500000);
-  const [interestRate, setInterestRate] = useState(3.5);
 
-  const sbpRate = 0.065;
-  const survivorPct = 0.55;
+  useEffect(() => {
+    loadMasterData().then(setData).catch(setErr);
+  }, []);
 
-  const basePay = masterData.basePay[rank]?.[years] || 0;
-  const sbpMonthly = basePay * sbpRate;
-  const sbpAnnual = sbpMonthly * 12;
-  const sbpBenefit = basePay * survivorPct;
-  const lifeAnnualCost = getLifeInsuranceRate(age, gender);
+  const monthlyBasePay = useMemo(() => {
+    if (!data?.basePay?.[memberRank]) return 0;
+    // choose nearest YOS bucket available in base table
+    const table = data.basePay[memberRank];
+    const keys = Object.keys(table);
+    if (!keys.length) return 0;
+    // pick max key <= yos, else smallest
+    const numericKeys = keys
+      .map((k) => (k === "<2" ? 1 : Number(k)))
+      .filter((n) => !Number.isNaN(n))
+      .sort((a, b) => a - b);
+    let sel = numericKeys[0];
+    for (const k of numericKeys) if (k <= yos) sel = k;
+    const keyStr = sel === 1 ? "<2" : String(sel);
+    return Number(table[keyStr] || 0);
+  }, [data, memberRank, yos]);
 
-  // Build cumulative data
-  const chartData = useMemo(() => {
-    const yearsArr = [];
-    let sbpCost = 0;
-    let lifeCost = 0;
-    let sbpBenefitCum = 0;
-    let lifeBenefitCum = 0;
-    const interest = interestRate / 100;
+  if (err) return <div className="p-4 text-rose-700">Failed to load data.</div>;
+  if (!data) return <div className="p-4">Loading…</div>;
 
-    for (let i = 1; i <= lifeExpectancy - age; i++) {
-      const currentAge = age + i;
-      const stillPayingSBP = i <= 30 && currentAge < 70;
-      const sbpThisYear = stillPayingSBP ? sbpAnnual : 0;
-      const lifeThisYear = i <= 20 ? lifeAnnualCost : 0;
-
-      sbpCost += sbpThisYear;
-      lifeCost += lifeThisYear;
-
-      // Benefits start after member's death — assume death at lifeExpectancy
-      if (i >= lifeExpectancy - age) {
-        sbpBenefitCum += sbpBenefit * (1 + interest) ** (lifeExpectancy - age - i);
-        lifeBenefitCum += insuranceAmount;
-      }
-
-      yearsArr.push({
-        year: i,
-        SBP_Cost: sbpCost,
-        Life_Cost: lifeCost,
-        SBP_Benefit: sbpBenefitCum,
-        Life_Benefit: lifeBenefitCum,
-      });
-    }
-    return yearsArr;
-  }, [age, gender, basePay, sbpAnnual, sbpBenefit, lifeAnnualCost, lifeExpectancy, interestRate, insuranceAmount]);
-
-  const last = chartData[chartData.length - 1] || {};
-  const recommendation =
-    last.SBP_Benefit > last.Life_Benefit
-      ? `SBP provides greater lifetime value beyond age ${lifeExpectancy}.`
-      : `Life insurance provides greater payout or flexibility before age ${lifeExpectancy}.`;
+  const sbpBase = monthlyBasePay; // simplification for demo; you can allow custom base amount
+  const sbpCovered = sbpBase * (coveredPct / 100);
+  const sbpPremium = sbpCovered * 0.065; // 6.5% monthly
+  const survivorBenefit = sbpCovered * 0.55; // 55% monthly to survivor
 
   return (
-    <div className="max-w-5xl mx-auto p-6 bg-white rounded-2xl shadow">
-      <h1 className="text-2xl font-bold mb-6 text-center">SBP vs Life Insurance Decision Calculator</h1>
+    <div className="max-w-5xl mx-auto my-8 p-6 bg-white rounded-2xl shadow">
+      <h1 className="text-2xl font-bold text-blue-800 mb-4">🛡️ SBP vs Insurance</h1>
 
-      {/* Input Grid */}
-      <div className="grid md:grid-cols-2 gap-6 mb-8">
-        <div>
-          <label className="block text-sm font-medium mb-1">Rank</label>
-          <select value={rank} onChange={(e) => setRank(e.target.value)} className="w-full border rounded p-2">
-            {Object.keys(masterData.basePay).map((r) => (
-              <option key={r}>{r}</option>
-            ))}
-          </select>
-        </div>
+      <div className="grid md:grid-cols-3 gap-6">
+        <section className="rounded-xl border p-4 space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Rank</label>
+            <select
+              className="mt-1 w-full rounded-md border p-2 bg-white"
+              value={memberRank}
+              onChange={(e) => setMemberRank(e.target.value)}
+            >
+              {Object.keys(data.basePay).map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Years of Service</label>
-          <input
-            type="number"
-            value={years}
-            min="2"
-            max="40"
-            onChange={(e) => setYears(Number(e.target.value))}
-            className="w-full border rounded p-2"
-          />
-        </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Years of Service</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border p-2"
+                value={yos} min={2} max={40}
+                onChange={(e) => setYos(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Coverage (%)</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border p-2"
+                value={coveredPct} min={6.5} max={100} step="0.5"
+                onChange={(e) => setCoveredPct(Number(e.target.value))}
+              />
+            </div>
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Your Age</label>
-          <input
-            type="number"
-            value={age}
-            onChange={(e) => setAge(Number(e.target.value))}
-            className="w-full border rounded p-2"
-          />
-        </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Member Age</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border p-2"
+                value={memberAge} min={18} max={85}
+                onChange={(e) => setMemberAge(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Spouse Age</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border p-2"
+                value={spouseAge} min={18} max={85}
+                onChange={(e) => setSpouseAge(Number(e.target.value))}
+              />
+            </div>
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Spouse Age</label>
-          <input
-            type="number"
-            value={spouseAge}
-            onChange={(e) => setSpouseAge(Number(e.target.value))}
-            className="w-full border rounded p-2"
-          />
-        </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Life Insurance Premium ($/mo)</label>
+            <input
+              type="number" className="mt-1 w-full rounded-md border p-2"
+              value={insPremMonthly} min={0}
+              onChange={(e) => setInsPremMonthly(Number(e.target.value))}
+            />
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Gender</label>
-          <select value={gender} onChange={(e) => setGender(e.target.value)} className="w-full border rounded p-2">
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-          </select>
-        </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Life Expectancy (years)</label>
+            <input
+              type="number" className="mt-1 w-full rounded-md border p-2"
+              value={lifeExpectancy} min={50} max={100}
+              onChange={(e) => setLifeExpectancy(Number(e.target.value))}
+            />
+          </div>
+        </section>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Expected Life Expectancy</label>
-          <input
-            type="number"
-            value={lifeExpectancy}
-            min={age + 1}
-            max="100"
-            onChange={(e) => setLifeExpectancy(Number(e.target.value))}
-            className="w-full border rounded p-2"
-          />
-        </div>
+        <section className="rounded-xl border p-4 space-y-2">
+          <div className="text-sm text-gray-600">Estimated Monthly Base Pay</div>
+          <div className="text-xl font-semibold">${monthlyBasePay.toLocaleString()}</div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Life Insurance Coverage ($)</label>
-          <input
-            type="number"
-            value={insuranceAmount}
-            onChange={(e) => setInsuranceAmount(Number(e.target.value))}
-            className="w-full border rounded p-2"
-          />
-        </div>
+          <div className="mt-3 text-sm text-gray-600">SBP Covered Base</div>
+          <div className="text-xl font-semibold">${sbpCovered.toLocaleString()}</div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Investment Interest Rate (%)</label>
-          <input
-            type="number"
-            value={interestRate}
-            step="0.1"
-            onChange={(e) => setInterestRate(Number(e.target.value))}
-            className="w-full border rounded p-2"
-          />
-        </div>
-      </div>
+          <div className="mt-3 text-sm text-gray-600">SBP Premium (6.5%)</div>
+          <div className="text-xl font-semibold">${sbpPremium.toFixed(2)}</div>
 
-      {/* Summary */}
-      <div className="bg-gray-50 p-4 rounded-lg mb-6">
-        <p>Base Pay: <b>${basePay.toLocaleString()}</b>/mo</p>
-        <p>SBP Premium: <b>${sbpMonthly.toFixed(2)}</b>/mo ({(sbpRate * 100).toFixed(1)}%)</p>
-        <p>SBP Survivor Benefit: <b>${sbpBenefit.toFixed(2)}</b>/mo ({(survivorPct * 100).toFixed(0)}% of base pay)</p>
-        <p>Life Insurance Cost: <b>${lifeAnnualCost.toFixed(2)}</b>/yr (average for {gender})</p>
-      </div>
+          <div className="mt-3 text-sm text-gray-600">Survivor Benefit (55%)</div>
+          <div className="text-xl font-semibold">${survivorBenefit.toFixed(2)}</div>
+        </section>
 
-      {/* Chart */}
-      <ResponsiveContainer width="100%" height={350}>
-        <LineChart data={chartData}>
-          <XAxis dataKey="year" label={{ value: "Years from Now", position: "insideBottom", offset: -5 }} />
-          <YAxis />
-          <Tooltip formatter={(v) => `$${Math.round(v).toLocaleString()}`} />
-          <Legend />
-          <Line type="monotone" dataKey="SBP_Cost" stroke="#2563eb" name="SBP Cumulative Cost" />
-          <Line type="monotone" dataKey="Life_Cost" stroke="#f97316" name="Life Cumulative Cost" />
-          <Line type="monotone" dataKey="SBP_Benefit" stroke="#22c55e" name="SBP Benefit Value" strokeDasharray="5 5" />
-          <Line type="monotone" dataKey="Life_Benefit" stroke="#e11d48" name="Life Benefit Value" strokeDasharray="5 5" />
-        </LineChart>
-      </ResponsiveContainer>
+        <section className="rounded-xl border p-4 space-y-2">
+          <div className="text-sm text-gray-600">Commercial Life Premium</div>
+          <div className="text-xl font-semibold">${insPremMonthly.toFixed(2)}/mo</div>
 
-      {/* Recommendation */}
-      <div className="mt-6 p-4 border-l-4 border-blue-500 bg-blue-50 rounded">
-        <h2 className="font-semibold text-lg mb-1">Recommendation</h2>
-        <p>{recommendation}</p>
+          <div className="mt-4 text-sm text-blue-900 bg-blue-50 p-3 rounded-lg">
+            <div className="font-semibold mb-1">SBP Rules Snapshot</div>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>Premium ~6.5% of covered base amount.</li>
+              <li>Benefit = 55% of covered base to eligible survivor.</li>
+              <li>Paid-up after **30 years of premiums AND age 70**.</li>
+            </ul>
+          </div>
+        </section>
       </div>
     </div>
   );
