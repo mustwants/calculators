@@ -1,81 +1,97 @@
 // PATH: src/DTIBAHCalculator.jsx
 import React, { useMemo, useState } from "react";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from "recharts";
 import { listStateOptions } from "./utils/loadStateTaxData";
-import { afterStateIncomeTax } from "./utils/tax";
 
 /**
  * DTI + BAH Calculator
- * - Front-end DTI: (PITI + HOA + other housing debts) / gross monthly income
- * - Back-end DTI: (all monthly debts incl. housing) / gross monthly income
- * - BAH is non-taxable and included in income for many lenders (confirm per lender).
- * - Shows net-after-state-income-tax for taxable income portion only.
- *
- * Assumptions:
- * - "Taxable monthly income" excludes BAH.
- * - BAH can be optionally included in qualifying income.
+ * - Computes front-end (housing) and back-end DTI.
+ * - Allows BAH and non-taxable allowances to improve qualifying income via gross-up.
+ * - Outputs max affordable P&I target for 28% / 36% rules and custom targets.
  */
 
+function monthly(num) {
+  return Math.max(0, Number(num) || 0);
+}
+function pct(num) {
+  const n = Number(num);
+  return Number.isFinite(n) ? Math.max(0, n) / 100 : 0;
+}
+
 export default function DTIBAHCalculator() {
-  // Location
+  // Context (state is informational only here)
   const states = useMemo(() => listStateOptions(), []);
   const [stateCode, setStateCode] = useState("VA");
 
   // Income
-  const [grossMonthlyTaxableIncome, setGrossMonthlyTaxableIncome] = useState(7000); // base pay + other taxable income
-  const [monthlyBAH, setMonthlyBAH] = useState(2300);
-  const [includeBAHInIncome, setIncludeBAHInIncome] = useState(true);
+  const [basePayMonthly, setBasePayMonthly] = useState(6500);
+  const [bahMonthly, setBahMonthly] = useState(2400);
+  const [basMonthly, setBasMonthly] = useState(450);
+  const [otherTaxableMonthly, setOtherTaxableMonthly] = useState(0);
+  const [otherNontaxMonthly, setOtherNontaxMonthly] = useState(0);
+  const [grossUpPct, setGrossUpPct] = useState(25); // common lender gross-up for non-taxable
 
-  // Housing costs (PITI+HOA)
-  const [monthlyPrincipalInterest, setMonthlyPrincipalInterest] = useState(2200);
-  const [monthlyPropertyTax, setMonthlyPropertyTax] = useState(450);
-  const [monthlyHomeInsurance, setMonthlyHomeInsurance] = useState(110);
-  const [monthlyHOA, setMonthlyHOA] = useState(75);
-  const [pmIMonthly, setPmIMonthly] = useState(0);
+  // Debts
+  const [minDebtPmtMonthly, setMinDebtPmtMonthly] = useState(350); // credit cards, auto, loans
+  const [studentLoansMonthly, setStudentLoansMonthly] = useState(0);
+  const [alimonyChildSupportMonthly, setAlimonyChildSupportMonthly] = useState(0);
 
-  // Other debts
-  const [otherDebtsMonthly, setOtherDebtsMonthly] = useState(600); // auto, cards, student loans, alimony, etc.
+  // Housing targets
+  const [estTaxesMonthly, setEstTaxesMonthly] = useState(450); // escrowed taxes
+  const [estInsuranceMonthly, setEstInsuranceMonthly] = useState(125); // HOI
+  const [hoaMonthly, setHoaMonthly] = useState(0);
+  const [targetFrontPct, setTargetFrontPct] = useState(28);
+  const [targetBackPct, setTargetBackPct] = useState(36);
 
-  // Derived
-  const pitiHoa =
-    (Number(monthlyPrincipalInterest) || 0) +
-    (Number(monthlyPropertyTax) || 0) +
-    (Number(monthlyHomeInsurance) || 0) +
-    (Number(monthlyHOA) || 0) +
-    (Number(pmIMonthly) || 0);
+  // Derived income
+  const taxableIncome = monthly(basePayMonthly) + monthly(otherTaxableMonthly);
+  const nonTaxable = monthly(bahMonthly) + monthly(basMonthly) + monthly(otherNontaxMonthly);
+  const grossUpFactor = 1 + pct(grossUpPct);
+  const qualifyingIncome = taxableIncome + nonTaxable * grossUpFactor;
 
-  const qualifyingIncome =
-    (Number(grossMonthlyTaxableIncome) || 0) + (includeBAHInIncome ? (Number(monthlyBAH) || 0) : 0);
+  // Debts
+  const recurringDebts = monthly(minDebtPmtMonthly) + monthly(studentLoansMonthly) + monthly(alimonyChildSupportMonthly);
 
-  const frontEndDTI = qualifyingIncome > 0 ? (pitiHoa / qualifyingIncome) * 100 : 0;
-  const backEndDTI = qualifyingIncome > 0 ? ((pitiHoa + (Number(otherDebtsMonthly) || 0)) / qualifyingIncome) * 100 : 0;
+  // Escrowed components
+  const escrows = monthly(estTaxesMonthly) + monthly(estInsuranceMonthly) + monthly(hoaMonthly);
 
-  // Net after state income tax on taxable income only (BAH excluded)
-  const netAfterStateTaxTaxableOnly = (() => {
-    // convert monthly taxable income to annual for the helper, then divide by 12
-    const annualTaxable = (Number(grossMonthlyTaxableIncome) || 0) * 12;
-    const annualAfter = afterStateIncomeTax(stateCode, annualTaxable);
-    return annualAfter / 12;
-  })();
+  // DTI current (if user enters a trial P&I)
+  const [trialPI, setTrialPI] = useState(2200);
+  const housingPmt = monthly(trialPI) + escrows;
+  const frontDTI = qualifyingIncome > 0 ? (housingPmt / qualifyingIncome) * 100 : 0;
+  const backDTI = qualifyingIncome > 0 ? ((housingPmt + recurringDebts) / qualifyingIncome) * 100 : 0;
 
-  const netMonthlyAllIn = netAfterStateTaxTaxableOnly + (includeBAHInIncome ? (Number(monthlyBAH) || 0) : 0);
+  // Max affordable P&I from front/back targets
+  const maxHousingByFront = Math.max(0, qualifyingIncome * pct(targetFrontPct));
+  const maxHousingByBack = Math.max(0, qualifyingIncome * pct(targetBackPct) - recurringDebts);
+  const maxPIFront = Math.max(0, maxHousingByFront - escrows);
+  const maxPIBack = Math.max(0, maxHousingByBack - escrows);
+  const conservativePI = Math.min(maxPIFront, maxPIBack);
+
+  const chartData = [
+    { name: "Qualifying Income", value: Math.round(qualifyingIncome) },
+    { name: "Escrows", value: Math.round(escrows) },
+    { name: "Debts", value: Math.round(recurringDebts) },
+    { name: "Trial P&I", value: Math.round(trialPI) },
+    { name: "Housing Pmt", value: Math.round(housingPmt) }
+  ];
 
   return (
-    <div className="max-w-5xl mx-auto my-8 p-6 bg-white rounded-2xl shadow">
+    <div className="max-w-6xl mx-auto my-8 p-6 bg-white rounded-2xl shadow">
       <header className="mb-6">
-        <h1 className="text-2xl font-bold text-blue-800">💰📊 DTI + BAH Calculator</h1>
+        <h1 className="text-2xl font-bold text-blue-800">💰📊 DTI + BAH</h1>
         <p className="text-sm text-gray-600">
-          Computes front-end and back-end DTI. BAH is non-taxable and can be included in qualifying
-          income depending on lender policy. State tax is applied only to taxable income for net view.
+          Grosses up non-taxable allowances (BAH/BAS) for underwriting. Shows front and back DTI and max affordable P&amp;I.
         </p>
       </header>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Column 1: Location + Income */}
-        <section className="rounded-xl border p-4 space-y-4">
+      <div className="grid xl:grid-cols-4 gap-6">
+        {/* Context */}
+        <section className="rounded-xl border p-4 space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700">State</label>
+            <label className="block text-sm font-medium text-gray-700">State (context)</label>
             <select
-              className="mt-1 w-full rounded-md border border-gray-300 p-2 bg-white"
+              className="mt-1 w-full rounded-md border p-2 bg-white"
               value={stateCode}
               onChange={(e) => setStateCode(e.target.value)}
             >
@@ -85,168 +101,249 @@ export default function DTIBAHCalculator() {
                 </option>
               ))}
             </select>
-            <p className="mt-1 text-xs text-gray-500">
-              Used only for net-after-tax display on taxable income. BAH is non-taxable.
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Taxable Income ($/mo)</label>
-            <input
-              type="number"
-              className="mt-1 w-full rounded-md border border-gray-300 p-2"
-              value={grossMonthlyTaxableIncome}
-              min={0}
-              onChange={(e) => setGrossMonthlyTaxableIncome(Number(e.target.value))}
-            />
-            <p className="mt-1 text-xs text-gray-500">Base pay plus any taxable income.</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">BAH ($/mo)</label>
-            <input
-              type="number"
-              className="mt-1 w-full rounded-md border border-gray-300 p-2"
-              value={monthlyBAH}
-              min={0}
-              onChange={(e) => setMonthlyBAH(Number(e.target.value))}
-            />
-            <div className="mt-2 flex items-center gap-2">
-              <input
-                id="includeBAHInIncome"
-                type="checkbox"
-                className="h-4 w-4"
-                checked={includeBAHInIncome}
-                onChange={(e) => setIncludeBAHInIncome(e.target.checked)}
-              />
-              <label htmlFor="includeBAHInIncome" className="text-sm text-gray-700">
-                Include BAH in qualifying income
-              </label>
-            </div>
-            <p className="mt-1 text-xs text-gray-500">BAH is non-taxable.</p>
-          </div>
-        </section>
-
-        {/* Column 2: Housing Costs (PITI + HOA + PMI) */}
-        <section className="rounded-xl border p-4 space-y-4">
-          <h2 className="font-semibold text-gray-800">Housing Costs</h2>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Principal & Interest ($/mo)</label>
-            <input
-              type="number"
-              className="mt-1 w-full rounded-md border border-gray-300 p-2"
-              value={monthlyPrincipalInterest}
-              min={0}
-              onChange={(e) => setMonthlyPrincipalInterest(Number(e.target.value))}
-            />
+            <p className="mt-1 text-xs text-gray-500">Used across tools for consistency. No state tax applied here.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Property Tax ($/mo)</label>
+              <label className="block text-sm font-medium text-gray-700">Gross-up Non-taxable (%)</label>
               <input
                 type="number"
-                className="mt-1 w-full rounded-md border border-gray-300 p-2"
-                value={monthlyPropertyTax}
+                className="mt-1 w-full rounded-md border p-2"
+                value={grossUpPct}
                 min={0}
-                onChange={(e) => setMonthlyPropertyTax(Number(e.target.value))}
+                max={35}
+                step="1"
+                onChange={(e) => setGrossUpPct(Number(e.target.value))}
+              />
+            </div>
+            <div className="rounded-lg bg-gray-50 p-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Gross-up Factor</span>
+                <span className="font-semibold">{grossUpFactor.toFixed(2)}x</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Income */}
+        <section className="rounded-xl border p-4 space-y-3">
+          <h2 className="font-semibold text-gray-800">Monthly Income</h2>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Base Pay (taxable)</label>
+            <input
+              type="number" className="mt-1 w-full rounded-md border p-2"
+              value={basePayMonthly} min={0}
+              onChange={(e) => setBasePayMonthly(Number(e.target.value))}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">BAH (non-taxable)</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border p-2"
+                value={bahMonthly} min={0}
+                onChange={(e) => setBahMonthly(Number(e.target.value))}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Home Insurance ($/mo)</label>
+              <label className="block text-sm font-medium text-gray-700">BAS (non-taxable)</label>
               <input
-                type="number"
-                className="mt-1 w-full rounded-md border border-gray-300 p-2"
-                value={monthlyHomeInsurance}
-                min={0}
-                onChange={(e) => setMonthlyHomeInsurance(Number(e.target.value))}
+                type="number" className="mt-1 w-full rounded-md border p-2"
+                value={basMonthly} min={0}
+                onChange={(e) => setBasMonthly(Number(e.target.value))}
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700">HOA ($/mo)</label>
+              <label className="block text-sm font-medium text-gray-700">Other Taxable</label>
               <input
-                type="number"
-                className="mt-1 w-full rounded-md border border-gray-300 p-2"
-                value={monthlyHOA}
-                min={0}
-                onChange={(e) => setMonthlyHOA(Number(e.target.value))}
+                type="number" className="mt-1 w-full rounded-md border p-2"
+                value={otherTaxableMonthly} min={0}
+                onChange={(e) => setOtherTaxableMonthly(Number(e.target.value))}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">PMI ($/mo)</label>
+              <label className="block text-sm font-medium text-gray-700">Other Non-taxable</label>
               <input
-                type="number"
-                className="mt-1 w-full rounded-md border border-gray-300 p-2"
-                value={pmIMonthly}
-                min={0}
-                onChange={(e) => setPmIMonthly(Number(e.target.value))}
+                type="number" className="mt-1 w-full rounded-md border p-2"
+                value={otherNontaxMonthly} min={0}
+                onChange={(e) => setOtherNontaxMonthly(Number(e.target.value))}
               />
             </div>
           </div>
-        </section>
 
-        {/* Column 3: Other Debts */}
-        <section className="rounded-xl border p-4 space-y-4">
-          <h2 className="font-semibold text-gray-800">Other Monthly Debts</h2>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Total Other Debts ($/mo)</label>
-            <input
-              type="number"
-              className="mt-1 w-full rounded-md border border-gray-300 p-2"
-              value={otherDebtsMonthly}
-              min={0}
-              onChange={(e) => setOtherDebtsMonthly(Number(e.target.value))}
-            />
-            <p className="mt-1 text-xs text-gray-500">Auto, cards, student loans, alimony, etc.</p>
-          </div>
-
-          <div className="rounded-lg bg-gray-50 p-3 text-sm">
+          <div className="rounded-lg bg-gray-50 p-3 text-sm space-y-1">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Taxable Income</span>
+              <span className="font-semibold">${taxableIncome.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Non-taxable</span>
+              <span className="font-semibold">${nonTaxable.toLocaleString()}</span>
+            </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Qualifying Income</span>
               <span className="font-semibold">${qualifyingIncome.toLocaleString()}</span>
             </div>
+          </div>
+        </section>
+
+        {/* Debts + Escrows */}
+        <section className="rounded-xl border p-4 space-y-3">
+          <h2 className="font-semibold text-gray-800">Debts & Escrows</h2>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Revolving/Installment Debts</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border p-2"
+                value={minDebtPmtMonthly} min={0}
+                onChange={(e) => setMinDebtPmtMonthly(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Student Loans</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border p-2"
+                value={studentLoansMonthly} min={0}
+                onChange={(e) => setStudentLoansMonthly(Number(e.target.value))}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Alimony/Child Support</label>
+            <input
+              type="number" className="mt-1 w-full rounded-md border p-2"
+              value={alimonyChildSupportMonthly} min={0}
+              onChange={(e) => setAlimonyChildSupportMonthly(Number(e.target.value))}
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Taxes (escrow)</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border p-2"
+                value={estTaxesMonthly} min={0}
+                onChange={(e) => setEstTaxesMonthly(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Insurance (HOI)</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border p-2"
+                value={estInsuranceMonthly} min={0}
+                onChange={(e) => setEstInsuranceMonthly(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">HOA</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border p-2"
+                value={hoaMonthly} min={0}
+                onChange={(e) => setHoaMonthly(Number(e.target.value))}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-lg bg-gray-50 p-3 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-600">Net After State Tax (taxable only)</span>
-              <span className="font-semibold">${netAfterStateTaxTaxableOnly.toFixed(0)}</span>
+              <span className="text-gray-600">Escrows</span>
+              <span className="font-semibold">${escrows.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Net Monthly All-In (net taxable + BAH if included)</span>
-              <span className="font-semibold">${netMonthlyAllIn.toFixed(0)}</span>
+              <span className="text-gray-600">Recurring Debts</span>
+              <span className="font-semibold">${recurringDebts.toLocaleString()}</span>
+            </div>
+          </div>
+        </section>
+
+        {/* Targets + Output */}
+        <section className="rounded-xl border p-4 space-y-3">
+          <h2 className="font-semibold text-gray-800">Targets & Result</h2>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Front-End Target (%)</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border p-2"
+                value={targetFrontPct} min={20} max={40} step="0.5"
+                onChange={(e) => setTargetFrontPct(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Back-End Target (%)</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border p-2"
+                value={targetBackPct} min={28} max={50} step="0.5"
+                onChange={(e) => setTargetBackPct(Number(e.target.value))}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Trial Principal & Interest ($/mo)</label>
+            <input
+              type="number" className="mt-1 w-full rounded-md border p-2"
+              value={trialPI} min={0}
+              onChange={(e) => setTrialPI(Number(e.target.value))}
+            />
+            <p className="mt-1 text-xs text-gray-500">Use this to test a payment. Escrows are added automatically.</p>
+          </div>
+
+          <div className="rounded-lg bg-blue-50 p-3 text-sm space-y-1">
+            <div className="flex justify-between">
+              <span className="text-blue-900">Front DTI</span>
+              <span className={`font-semibold ${frontDTI > targetFrontPct ? "text-rose-700" : "text-blue-900"}`}>
+                {frontDTI.toFixed(1)}%
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-blue-900">Back DTI</span>
+              <span className={`font-semibold ${backDTI > targetBackPct ? "text-rose-700" : "text-blue-900"}`}>
+                {backDTI.toFixed(1)}%
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-blue-900">Max P&I by Front Target</span>
+              <span className="font-semibold text-blue-900">${Math.max(0, Math.floor(maxPIFront)).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-blue-900">Max P&I by Back Target</span>
+              <span className="font-semibold text-blue-900">${Math.max(0, Math.floor(maxPIBack)).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between pt-1 border-t">
+              <span className="text-blue-900">Recommended Max P&I</span>
+              <span className="font-semibold text-blue-900">${Math.max(0, Math.floor(conservativePI)).toLocaleString()}</span>
             </div>
           </div>
         </section>
       </div>
 
-      {/* DTI Summary */}
-      <section className="mt-6 grid md:grid-cols-2 gap-4">
-        <div className="rounded-xl border p-4">
-          <div className="text-xs uppercase text-gray-500">Front-End DTI</div>
-          <div className={`text-xl font-semibold ${frontEndDTI > 36 ? "text-rose-600" : "text-green-700"}`}>
-            {frontEndDTI.toFixed(1)}%
-          </div>
-          <div className="text-xs text-gray-500">Target often ≤ 28–36% depending on lender.</div>
-        </div>
-
-        <div className="rounded-xl border p-4">
-          <div className="text-xs uppercase text-gray-500">Back-End DTI</div>
-          <div className={`text-xl font-semibold ${backEndDTI > 45 ? "text-rose-600" : "text-green-700"}`}>
-            {backEndDTI.toFixed(1)}%
-          </div>
-          <div className="text-xs text-gray-500">Target often ≤ 41–50% depending on program.</div>
-        </div>
-      </section>
+      {/* Chart */}
+      <div className="mt-6 h-72 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData}>
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip formatter={(v) => `$${Math.round(v).toLocaleString()}`} />
+            <Legend />
+            <Bar dataKey="value" name="Amount" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
 
       <footer className="mt-6 rounded-lg bg-blue-50 p-4 text-sm text-blue-900">
         <ul className="list-disc pl-5 space-y-1">
-          <li>Confirm with your lender whether BAH is included in qualifying income for your program.</li>
-          <li>This tool applies state income tax only to taxable income for net comparisons.</li>
-          <li>Results are estimates and do not constitute underwriting approval.</li>
+          <li>BAH and BAS are non-taxable. Many lenders gross-up non-taxable income; 25% is common but policy varies.</li>
+          <li>Front DTI: (P&I + escrows) / qualifying income. Back DTI: (Front + recurring debts) / qualifying income.</li>
+          <li>This tool does not determine eligibility. Lender overlays and AUS findings control.</li>
         </ul>
       </footer>
     </div>
   );
 }
+
