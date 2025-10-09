@@ -19,6 +19,8 @@ import MilitaryRetirementTSPTool from './MilitaryRetirementTSPTool';
 import SBPVsLifeInsuranceCalculator from './SBPVsLifeInsuranceCalculator';
 import GIBillHousingStipendEstimator from './GIBillHousingStipendEstimator';
 import SBPDecisionCalculator from './SBPDecisionCalculator';
+import PCSStateTaxImpactCalculator from './PCSStateTaxImpactCalculator';
+import MilitaryRetTaxImpactCalculator from './MilitaryRetTaxImpactCalculator';
 import { ErrorBoundary } from './ErrorBoundary';
 
 const calculators = [
