@@ -24,6 +24,7 @@ import SBPDecisionCalculator from './SBPDecisionCalculator';
 import PCSStateTaxImpactCalculator from './PCSStateTaxImpactCalculator';
 import MilitaryRetTaxImpactCalculator from './MilitaryRetTaxImpactCalculator';
 import DisabledVetPropertyTaxReliefEstimator from './DisabledVetPropertyTaxReliefEstimator';
+import MSRRAIncomeTaxEstimator from './MSRRAIncomeTaxEstimator';
 
 import { ErrorBoundary } from './ErrorBoundary';
 
@@ -54,6 +55,7 @@ const calculators = [
   { name: 'PCS State Tax Impact', component: PCSStateTaxImpactCalculator, icon: '🧾', phase: 4 },
   { name: 'Military Ret Tax Impact', component: MilitaryRetTaxImpactCalculator, icon: '🧮', phase: 4 },
   { name: 'Disabled Vet Prop-Tax Relief', component: DisabledVetPropertyTaxReliefEstimator, icon: '🏡', phase: 4 },
+  { name: 'MSRRA Income Tax', component: MSRRAIncomeTaxEstimator, icon: '📑', phase: 4 },
 ];
 
 function App() {
