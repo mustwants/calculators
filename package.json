@@ -1,12 +1,11 @@
 {
   "type": "module",
   "name": "mustwants-calculators",
-  "version": "2.0.1",
+  "version": "2.0.3",
   "description": "VetMover - Military Real Estate Calculators for home buyers and renters",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "prebuild": "jq . src/data/masterData.json > /dev/null",
+    "prebuild": "jq . public/data/masterData.json > /dev/null",
     "build": "vite build",
     "build:production": "NODE_ENV=production vite build",
     "build:staging": "NODE_ENV=staging vite build",
@@ -17,7 +16,7 @@
     "fetch:disability": "node src/scripts/fetchDisabilityRates.js",
     "build:data": "node src/scripts/buildDataset.js",
     "update:data": "npm run fetch:basepay && npm run fetch:disability && npm run build:data",
-    "release:data": "npm run update:data && git add src/data/masterData.json && git commit -m 'Annual Data Update: DFAS + VA + SBP' && git tag -a data-$(date +%Y).1 -m 'Updated DFAS & VA rates for $(date +%Y)' && git push origin main --tags"
+    "release:data": "npm run update:data && git add public/data/masterData.json public/data/basePay_2025.json public/data/disabilityRates_2025.json && git commit -m 'Annual Data Update: DFAS + VA + SBP' && git tag -a data-$(date +%Y).1 -m 'Updated DFAS & VA rates for $(date +%Y)' && git push origin main --tags"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.4",

@@ -1,590 +1,312 @@
-import React, { useState, useEffect } from 'react';
-import { Bar, Doughnut } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement,
-} from 'chart.js';
-import { nationalAverages } from './data/nationalAverages.js';
+// PATH: src/LandlordProfitabilityTool.jsx
+import React, { useMemo, useState } from "react";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from "recharts";
+import { listStateOptions } from "./utils/loadStateTaxData";
+import { propertyTaxAnnual, incomeTaxLiability } from "./utils/tax";
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement
-);
+/**
+ * Landlord Profitability Tool
+ * - Uses state average property-tax rate.
+ * - Computes NOI, Cap Rate, Debt Service, Cash Flow, Cash-on-Cash.
+ * - Simple state after-tax cash flow: tax on taxable income = max(0, NOI − interest − depreciation).
+ *   Depreciation = building_value / 27.5 years. Building_value = price * buildingPct.
+ */
 
-function LandlordProfitabilityTool() {
-  const rentalDefaults = nationalAverages.phase2Data?.rentalProperty || {};
-  const housingDefaults = nationalAverages.housing?.nationalAverages || {};
-  
-  const [inputs, setInputs] = useState({
-    propertyValue: 300000,
-    monthlyRent: 2200,
-    mortgagePayment: 1800,
-    propertyTax: 350,
-    insurance: 120,
-    maintenance: 150,
-    managementFee: rentalDefaults.managementFeeRange?.average || 8,
-    vacancyRate: rentalDefaults.vacancyRateRange?.average || 6.8,
-    capExReserve: 100,
-    includeManagement: true,
-    loanAmount: 240000,
-    appreciationRate: 3.5
-  });
+function pmt(ratePct, years, principal) {
+  const r = (ratePct / 100) / 12;
+  const n = years * 12;
+  if (r === 0) return principal / n;
+  return (r * principal) / (1 - Math.pow(1 + r, -n));
+}
 
-  const [profitability, setProfitability] = useState({
-    monthlyData: {},
-    annualData: {},
-    cashFlow: 0,
-    capRate: 0,
-    cashOnCashReturn: 0,
-    totalReturn: 0
-  });
+export default function LandlordProfitabilityTool() {
+  // Location
+  const states = useMemo(() => listStateOptions(), []);
+  const [stateCode, setStateCode] = useState("VA");
 
-  const calculateProfitability = () => {
-    // Monthly Income
-    const grossRent = inputs.monthlyRent;
-    const vacancyLoss = grossRent * (inputs.vacancyRate / 100);
-    const effectiveRent = grossRent - vacancyLoss;
-    
-    // Monthly Expenses
-    const mortgage = inputs.mortgagePayment;
-    const propertyTax = inputs.propertyTax;
-    const insurance = inputs.insurance;
-    const maintenance = inputs.maintenance;
-    const management = inputs.includeManagement ? 
-      (grossRent * inputs.managementFee / 100) : 0;
-    const capEx = inputs.capExReserve;
-    
-    const totalExpenses = mortgage + propertyTax + insurance + maintenance + management + capEx;
-    const monthlyCashFlow = effectiveRent - totalExpenses;
-    
-    // Annual Calculations
-    const annualRent = effectiveRent * 12;
-    const annualExpenses = totalExpenses * 12;
-    const annualCashFlow = monthlyCashFlow * 12;
-    
-    // Key Metrics
-    const capRate = ((annualRent - (annualExpenses - mortgage * 12)) / inputs.propertyValue) * 100;
-    const downPayment = inputs.propertyValue - inputs.loanAmount;
-    const cashOnCashReturn = downPayment > 0 ? (annualCashFlow / downPayment) * 100 : 0;
-    
-    // Total Return (including appreciation)
-    const annualAppreciation = inputs.propertyValue * (inputs.appreciationRate / 100);
-    const totalAnnualReturn = annualCashFlow + annualAppreciation;
-    const totalReturn = downPayment > 0 ? (totalAnnualReturn / downPayment) * 100 : 0;
-    
-    const monthlyData = {
-      income: {
-        grossRent,
-        vacancyLoss,
-        effectiveRent
-      },
-      expenses: {
-        mortgage,
-        propertyTax,
-        insurance,
-        maintenance,
-        management,
-        capEx,
-        total: totalExpenses
-      },
-      cashFlow: monthlyCashFlow
-    };
-    
-    const annualData = {
-      income: annualRent,
-      expenses: annualExpenses,
-      cashFlow: annualCashFlow,
-      appreciation: annualAppreciation
-    };
-    
-    setProfitability({
-      monthlyData,
-      annualData,
-      cashFlow: monthlyCashFlow,
-      capRate,
-      cashOnCashReturn,
-      totalReturn
-    });
-  };
+  // Acquisition / financing
+  const [price, setPrice] = useState(420000);
+  const [downPct, setDownPct] = useState(10);
+  const [ratePct, setRatePct] = useState(6.75);
+  const [termYrs, setTermYrs] = useState(30);
+  const [buildingPct, setBuildingPct] = useState(80); // percent of price considered building (depreciable)
 
-  useEffect(() => {
-    calculateProfitability();
-  }, [inputs]);
+  // Income
+  const [rentMonthly, setRentMonthly] = useState(2500);
+  const [vacancyPct, setVacancyPct] = useState(6);
+  const [otherIncomeMonthly, setOtherIncomeMonthly] = useState(0); // parking, laundry, etc.
 
-  // Stacked Bar Chart Data - Income vs Expenses
-  const stackedBarData = {
-    labels: ['January', 'February', 'March', 'April', 'May', 'June'],
-    datasets: [
-      {
-        label: 'Gross Rent',
-        data: Array(6).fill(profitability.monthlyData.income?.grossRent || 0),
-        backgroundColor: '#22c55e',
-        borderColor: '#16a34a',
-        borderWidth: 1
-      },
-      {
-        label: 'Vacancy Loss',
-        data: Array(6).fill(-(profitability.monthlyData.income?.vacancyLoss || 0)),
-        backgroundColor: '#ef4444',
-        borderColor: '#dc2626',
-        borderWidth: 1
-      },
-      {
-        label: 'Mortgage',
-        data: Array(6).fill(-(profitability.monthlyData.expenses?.mortgage || 0)),
-        backgroundColor: '#3b82f6',
-        borderColor: '#2563eb',
-        borderWidth: 1
-      },
-      {
-        label: 'Property Tax',
-        data: Array(6).fill(-(profitability.monthlyData.expenses?.propertyTax || 0)),
-        backgroundColor: '#f59e0b',
-        borderColor: '#d97706',
-        borderWidth: 1
-      },
-      {
-        label: 'Insurance',
-        data: Array(6).fill(-(profitability.monthlyData.expenses?.insurance || 0)),
-        backgroundColor: '#8b5cf6',
-        borderColor: '#7c3aed',
-        borderWidth: 1
-      },
-      {
-        label: 'Maintenance',
-        data: Array(6).fill(-(profitability.monthlyData.expenses?.maintenance || 0)),
-        backgroundColor: '#ec4899',
-        borderColor: '#db2777',
-        borderWidth: 1
-      },
-      {
-        label: 'Management',
-        data: Array(6).fill(-(profitability.monthlyData.expenses?.management || 0)),
-        backgroundColor: '#06b6d4',
-        borderColor: '#0891b2',
-        borderWidth: 1
-      }
-    ]
-  };
+  // Operating expenses (monthly unless noted)
+  const [insuranceMonthly, setInsuranceMonthly] = useState(125);
+  const [repairsPct, setRepairsPct] = useState(8); // % of rent
+  const [managementPct, setManagementPct] = useState(8); // % of rent
+  const [utilitiesMonthly, setUtilitiesMonthly] = useState(0);
+  const [hoaMonthly, setHoaMonthly] = useState(0);
 
-  // Expense Breakdown Pie Chart
-  const expenseBreakdownData = {
-    labels: ['Mortgage', 'Property Tax', 'Insurance', 'Maintenance', 'Management', 'CapEx Reserve'],
-    datasets: [{
-      data: [
-        profitability.monthlyData.expenses?.mortgage || 0,
-        profitability.monthlyData.expenses?.propertyTax || 0,
-        profitability.monthlyData.expenses?.insurance || 0,
-        profitability.monthlyData.expenses?.maintenance || 0,
-        profitability.monthlyData.expenses?.management || 0,
-        profitability.monthlyData.expenses?.capEx || 0
-      ],
-      backgroundColor: [
-        '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#10b981'
-      ],
-      borderWidth: 2,
-      borderColor: '#ffffff'
-    }]
-  };
+  // Derived — financing
+  const down = price * (downPct / 100);
+  const loan = Math.max(0, price - down);
+  const piMonthly = pmt(ratePct, termYrs, loan);
+  const monthlyRate = (ratePct / 100) / 12;
+  const firstMonthInterest = loan * monthlyRate; // rough average; acceptable for planning
+  const annualDebtService = piMonthly * 12;
 
-  const chartOptions = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: 'bottom',
-      },
-      title: {
-        display: true,
-        text: 'Monthly Rental Property Cash Flow'
-      },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        ticks: {
-          callback: function(value) {
-            return '$' + value.toLocaleString();
-          }
-        }
-      }
-    }
-  };
+  // Taxes and fixed annuals
+  const annualPropTax = propertyTaxAnnual(stateCode, price);
+  const fixedAnnual = annualPropTax + (insuranceMonthly * 12) + (utilitiesMonthly * 12) + (hoaMonthly * 12);
+
+  // Income annualized with vacancy
+  const grossRentAnnual = rentMonthly * 12;
+  const vacancyLoss = grossRentAnnual * (vacancyPct / 100);
+  const otherIncomeAnnual = otherIncomeMonthly * 12;
+  const egi = grossRentAnnual - vacancyLoss + otherIncomeAnnual; // Effective Gross Income
+
+  // Variable expenses
+  const repairsAnnual = grossRentAnnual * (repairsPct / 100);
+  const managementAnnual = grossRentAnnual * (managementPct / 100);
+
+  // NOI
+  const operatingExpenses = fixedAnnual + repairsAnnual + managementAnnual;
+  const noi = egi - operatingExpenses;
+
+  // Returns
+  const capRate = price > 0 ? (noi / price) * 100 : 0;
+  const annualCashFlow = noi - annualDebtService;
+  const coc = down > 0 ? (annualCashFlow / down) * 100 : 0;
+
+  // Simple state tax on taxable real-estate income
+  const buildingValue = price * (buildingPct / 100);
+  const depreciationAnnual = buildingValue / 27.5;
+  const taxableIncome = Math.max(0, noi - firstMonthInterest * 12 - depreciationAnnual);
+  const estStateTax = incomeTaxLiability(stateCode, taxableIncome);
+  const afterTaxCashFlow = annualCashFlow - estStateTax;
+
+  // Chart
+  const chartData = [
+    { name: "EGI", value: Math.max(0, egi) },
+    { name: "Operating Exp", value: Math.max(0, operatingExpenses) },
+    { name: "NOI", value: Math.max(0, noi) },
+    { name: "Debt Service", value: Math.max(0, annualDebtService) },
+    { name: "Cash Flow", value: annualCashFlow },
+    { name: "After-Tax CF", value: afterTaxCashFlow }
+  ];
 
   return (
-    <div className="max-w-7xl mx-auto p-4 bg-white">
-      <div className="text-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-3">
-          🏠 Landlord Profitability Tool
-        </h1>
-        <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-          Analyze rental property cash flow, expenses, and profitability metrics 
-          for military real estate investment decisions.
+    <div className="max-w-6xl mx-auto my-8 p-6 bg-white rounded-2xl shadow">
+      <header className="mb-6">
+        <h1 className="text-2xl font-bold text-blue-800">🏠 Landlord Profitability</h1>
+        <p className="text-sm text-gray-600">
+          Uses your state’s property-tax average. Computes NOI, cap rate, cash flow, and a simple state after-tax view.
+          Federal taxes, NIIT, passive limits, and AMT are not modeled.
         </p>
-      </div>
+      </header>
 
-      {/* Input Controls */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 p-6 bg-gray-50 rounded-lg">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Property Value
-          </label>
-          <input
-            type="range"
-            min="150000"
-            max="600000"
-            step="10000"
-            value={inputs.propertyValue}
-            onChange={(e) => setInputs({...inputs, propertyValue: parseInt(e.target.value)})}
-            className="w-full h-2 bg-green-200 rounded-lg appearance-none cursor-pointer"
-          />
-          <div className="flex justify-between text-sm text-gray-500 mt-1">
-            <span>$150K</span>
-            <span className="font-medium">${inputs.propertyValue.toLocaleString()}</span>
-            <span>$600K</span>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Monthly Rent
-          </label>
-          <input
-            type="range"
-            min="1000"
-            max="5000"
-            step="100"
-            value={inputs.monthlyRent}
-            onChange={(e) => setInputs({...inputs, monthlyRent: parseInt(e.target.value)})}
-            className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer"
-          />
-          <div className="flex justify-between text-sm text-gray-500 mt-1">
-            <span>$1K</span>
-            <span className="font-medium">${inputs.monthlyRent.toLocaleString()}</span>
-            <span>$5K</span>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Mortgage Payment
-          </label>
-          <input
-            type="range"
-            min="800"
-            max="4000"
-            step="50"
-            value={inputs.mortgagePayment}
-            onChange={(e) => setInputs({...inputs, mortgagePayment: parseInt(e.target.value)})}
-            className="w-full h-2 bg-purple-200 rounded-lg appearance-none cursor-pointer"
-          />
-          <div className="flex justify-between text-sm text-gray-500 mt-1">
-            <span>$800</span>
-            <span className="font-medium">${inputs.mortgagePayment.toLocaleString()}</span>
-            <span>$4K</span>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Management Fee %
-          </label>
-          <input
-            type="range"
-            min="6"
-            max="12"
-            step="0.5"
-            value={inputs.managementFee}
-            onChange={(e) => setInputs({...inputs, managementFee: parseFloat(e.target.value)})}
-            className="w-full h-2 bg-yellow-200 rounded-lg appearance-none cursor-pointer"
-          />
-          <div className="flex justify-between text-sm text-gray-500 mt-1">
-            <span>6%</span>
-            <span className="font-medium">{inputs.managementFee}%</span>
-            <span>12%</span>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Property Tax (Monthly)
-          </label>
-          <input
-            type="number"
-            min="100"
-            max="1000"
-            value={inputs.propertyTax}
-            onChange={(e) => setInputs({...inputs, propertyTax: parseInt(e.target.value)})}
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Insurance (Monthly)
-          </label>
-          <input
-            type="number"
-            min="50"
-            max="500"
-            value={inputs.insurance}
-            onChange={(e) => setInputs({...inputs, insurance: parseInt(e.target.value)})}
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Maintenance (Monthly)
-          </label>
-          <input
-            type="number"
-            min="50"
-            max="500"
-            value={inputs.maintenance}
-            onChange={(e) => setInputs({...inputs, maintenance: parseInt(e.target.value)})}
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Vacancy Rate %
-          </label>
-          <input
-            type="range"
-            min="2"
-            max="15"
-            step="0.5"
-            value={inputs.vacancyRate}
-            onChange={(e) => setInputs({...inputs, vacancyRate: parseFloat(e.target.value)})}
-            className="w-full h-2 bg-red-200 rounded-lg appearance-none cursor-pointer"
-          />
-          <div className="flex justify-between text-sm text-gray-500 mt-1">
-            <span>2%</span>
-            <span className="font-medium">{inputs.vacancyRate}%</span>
-            <span>15%</span>
-          </div>
-        </div>
-
-        <div className="flex items-center">
-          <input
-            type="checkbox"
-            id="includeManagement"
-            checked={inputs.includeManagement}
-            onChange={(e) => setInputs({...inputs, includeManagement: e.target.checked})}
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-          />
-          <label htmlFor="includeManagement" className="ml-2 text-sm font-medium text-gray-700">
-            Include Property Management
-          </label>
-        </div>
-      </div>
-
-      {/* Key Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className={`rounded-lg p-4 ${profitability.cashFlow >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'} border`}>
-          <div className="text-center">
-            <div className={`text-2xl font-bold mb-1 ${profitability.cashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              ${Math.round(profitability.cashFlow).toLocaleString()}
-            </div>
-            <div className={`text-sm ${profitability.cashFlow >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-              Monthly Cash Flow
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600 mb-1">
-              {profitability.capRate.toFixed(2)}%
-            </div>
-            <div className="text-sm text-blue-700">Cap Rate</div>
-          </div>
-        </div>
-
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-purple-600 mb-1">
-              {profitability.cashOnCashReturn.toFixed(2)}%
-            </div>
-            <div className="text-sm text-purple-700">Cash-on-Cash Return</div>
-          </div>
-        </div>
-
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-yellow-600 mb-1">
-              {profitability.totalReturn.toFixed(2)}%
-            </div>
-            <div className="text-sm text-yellow-700">Total Return (w/ Appreciation)</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        {/* Stacked Bar Chart - Income vs Expenses */}
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">
-            Monthly Income vs Expenses
-          </h3>
-          <div className="h-80">
-            <Bar data={stackedBarData} options={chartOptions} />
-          </div>
-        </div>
-
-        {/* Expense Breakdown Pie Chart */}
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">
-            Expense Breakdown
-          </h3>
-          <div className="h-80">
-            <Doughnut data={expenseBreakdownData} options={{
-              responsive: true,
-              plugins: {
-                legend: {
-                  position: 'bottom',
-                },
-                tooltip: {
-                  callbacks: {
-                    label: function(context) {
-                      return context.label + ': $' + context.parsed.toLocaleString();
-                    }
-                  }
-                }
-              }
-            }} />
-          </div>
-        </div>
-      </div>
-
-      {/* Detailed Breakdown */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-        {/* Income Breakdown */}
-        <div className="bg-green-50 rounded-xl p-6 border border-green-200">
-          <h3 className="text-xl font-bold text-green-800 mb-4">💰 Monthly Income</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-green-700">Gross Rent:</span>
-              <span className="font-semibold text-green-800">
-                ${(profitability.monthlyData.income?.grossRent || 0).toLocaleString()}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-red-600">Vacancy Loss ({inputs.vacancyRate}%):</span>
-              <span className="font-semibold text-red-700">
-                -${(profitability.monthlyData.income?.vacancyLoss || 0).toLocaleString()}
-              </span>
-            </div>
-            <div className="flex justify-between border-t pt-2 font-bold">
-              <span className="text-green-700">Effective Rent:</span>
-              <span className="text-green-800">
-                ${(profitability.monthlyData.income?.effectiveRent || 0).toLocaleString()}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Expense Breakdown */}
-        <div className="bg-red-50 rounded-xl p-6 border border-red-200">
-          <h3 className="text-xl font-bold text-red-800 mb-4">📊 Monthly Expenses</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-red-700">Mortgage P&I:</span>
-              <span className="font-semibold text-red-800">
-                ${(profitability.monthlyData.expenses?.mortgage || 0).toLocaleString()}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-red-700">Property Tax:</span>
-              <span className="font-semibold text-red-800">
-                ${(profitability.monthlyData.expenses?.propertyTax || 0).toLocaleString()}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-red-700">Insurance:</span>
-              <span className="font-semibold text-red-800">
-                ${(profitability.monthlyData.expenses?.insurance || 0).toLocaleString()}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-red-700">Maintenance:</span>
-              <span className="font-semibold text-red-800">
-                ${(profitability.monthlyData.expenses?.maintenance || 0).toLocaleString()}
-              </span>
-            </div>
-            {inputs.includeManagement && (
-              <div className="flex justify-between">
-                <span className="text-red-700">Management ({inputs.managementFee}%):</span>
-                <span className="font-semibold text-red-800">
-                  ${(profitability.monthlyData.expenses?.management || 0).toLocaleString()}
-                </span>
-              </div>
-            )}
-            <div className="flex justify-between">
-              <span className="text-red-700">CapEx Reserve:</span>
-              <span className="font-semibold text-red-800">
-                ${(profitability.monthlyData.expenses?.capEx || 0).toLocaleString()}
-              </span>
-            </div>
-            <div className="flex justify-between border-t pt-2 font-bold">
-              <span className="text-red-700">Total Expenses:</span>
-              <span className="text-red-800">
-                ${(profitability.monthlyData.expenses?.total || 0).toLocaleString()}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Investment Analysis */}
-      <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 text-center">
-        <h3 className="text-2xl font-bold text-gray-900 mb-4">
-          📈 Investment Analysis
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid xl:grid-cols-4 gap-6">
+        {/* Location + Financing */}
+        <section className="rounded-xl border p-4 space-y-4 xl:col-span-1">
           <div>
-            <div className="text-lg font-semibold text-blue-600 mb-2">Annual Cash Flow</div>
-            <div className="text-2xl font-bold text-gray-800 mb-1">
-              ${Math.round(profitability.annualData.cashFlow || 0).toLocaleString()}
-            </div>
-            <div className="text-sm text-gray-600">
-              {profitability.cashFlow >= 0 ? 'Positive cash flow property' : 'Negative cash flow - consider adjustments'}
-            </div>
+            <label className="block text-sm font-medium text-gray-700">State</label>
+            <select
+              className="mt-1 w-full rounded-md border border-gray-300 p-2 bg-white"
+              value={stateCode}
+              onChange={(e) => setStateCode(e.target.value)}
+            >
+              {states.map((s) => (
+                <option key={s.code} value={s.code}>{s.name} ({s.code})</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-500">Property tax auto-applied.</p>
           </div>
+
           <div>
-            <div className="text-lg font-semibold text-purple-600 mb-2">Break-Even Analysis</div>
-            <div className="text-2xl font-bold text-gray-800 mb-1">
-              ${Math.round((profitability.monthlyData.expenses?.total || 0) + (profitability.monthlyData.income?.vacancyLoss || 0)).toLocaleString()}
+            <label className="block text-sm font-medium text-gray-700">Price ($)</label>
+            <input
+              type="number" className="mt-1 w-full rounded-md border border-gray-300 p-2"
+              value={price} min={0} onChange={(e) => setPrice(Number(e.target.value))}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Down (%)</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border border-gray-300 p-2"
+                value={downPct} min={0} max={100} step="0.1"
+                onChange={(e) => setDownPct(Number(e.target.value))}
+              />
             </div>
-            <div className="text-sm text-gray-600">
-              Minimum rent needed to break even
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Rate (% APR)</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border border-gray-300 p-2"
+                value={ratePct} min={0} step="0.01"
+                onChange={(e) => setRatePct(Number(e.target.value))}
+              />
             </div>
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Term (yrs)</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border border-gray-300 p-2"
+                value={termYrs} min={5} max={40}
+                onChange={(e) => setTermYrs(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Building Portion (%)</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border border-gray-300 p-2"
+                value={buildingPct} min={0} max={100} step="1"
+                onChange={(e) => setBuildingPct(Number(e.target.value))}
+              />
+              <p className="mt-1 text-xs text-gray-500">For depreciation. Land not depreciable.</p>
+            </div>
+          </div>
+
+          <div className="rounded-lg bg-gray-50 p-3 text-sm">
+            <div className="flex justify-between"><span className="text-gray-600">Down Payment</span><span className="font-semibold">${down.toLocaleString()}</span></div>
+            <div className="flex justify-between"><span className="text-gray-600">Loan Amount</span><span className="font-semibold">${loan.toLocaleString()}</span></div>
+            <div className="flex justify-between"><span className="text-gray-600">P&I</span><span className="font-semibold">${piMonthly.toFixed(0)}/mo</span></div>
+          </div>
+        </section>
+
+        {/* Income */}
+        <section className="rounded-xl border p-4 space-y-4 xl:col-span-1">
+          <h2 className="font-semibold text-gray-800">Income</h2>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Rent ($/mo)</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border border-gray-300 p-2"
+                value={rentMonthly} min={0}
+                onChange={(e) => setRentMonthly(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Vacancy (%)</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border border-gray-300 p-2"
+                value={vacancyPct} min={0} max={50} step="0.1"
+                onChange={(e) => setVacancyPct(Number(e.target.value))}
+              />
+            </div>
+          </div>
+
           <div>
-            <div className="text-lg font-semibold text-green-600 mb-2">1% Rule Check</div>
-            <div className="text-2xl font-bold text-gray-800 mb-1">
-              {((inputs.monthlyRent / inputs.propertyValue) * 100).toFixed(2)}%
+            <label className="block text-sm font-medium text-gray-700">Other Income ($/mo)</label>
+            <input
+              type="number" className="mt-1 w-full rounded-md border border-gray-300 p-2"
+              value={otherIncomeMonthly} min={0}
+              onChange={(e) => setOtherIncomeMonthly(Number(e.target.value))}
+            />
+          </div>
+        </section>
+
+        {/* Expenses */}
+        <section className="rounded-xl border p-4 space-y-4 xl:col-span-1">
+          <h2 className="font-semibold text-gray-800">Operating Expenses</h2>
+
+          <div className="rounded-lg bg-gray-50 p-3 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Property Tax (annual)</span>
+              <span className="font-semibold">${annualPropTax.toLocaleString()}</span>
             </div>
-            <div className="text-sm text-gray-600">
-              {(inputs.monthlyRent / inputs.propertyValue) >= 0.01 ? 'Meets 1% rule ✓' : 'Below 1% rule'}
+            <p className="mt-1 text-xs text-gray-500">From state average.</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Insurance ($/mo)</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border border-gray-300 p-2"
+                value={insuranceMonthly} min={0}
+                onChange={(e) => setInsuranceMonthly(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Utilities ($/mo)</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border border-gray-300 p-2"
+                value={utilitiesMonthly} min={0}
+                onChange={(e) => setUtilitiesMonthly(Number(e.target.value))}
+              />
             </div>
           </div>
-        </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Repairs (% of rent)</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border border-gray-300 p-2"
+                value={repairsPct} min={0} max={30} step="0.1"
+                onChange={(e) => setRepairsPct(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Management (% of rent)</label>
+              <input
+                type="number" className="mt-1 w-full rounded-md border border-gray-300 p-2"
+                value={managementPct} min={0} max={30} step="0.1"
+                onChange={(e) => setManagementPct(Number(e.target.value))}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">HOA ($/mo)</label>
+            <input
+              type="number" className="mt-1 w-full rounded-md border border-gray-300 p-2"
+              value={hoaMonthly} min={0}
+              onChange={(e) => setHoaMonthly(Number(e.target.value))}
+            />
+          </div>
+        </section>
+
+        {/* Results */}
+        <section className="rounded-xl border p-4 space-y-4 xl:col-span-1">
+          <h2 className="font-semibold text-gray-800">Results</h2>
+
+          <div className="rounded-lg bg-gray-50 p-3 text-sm space-y-1">
+            <div className="flex justify-between"><span className="text-gray-600">EGI</span><span className="font-semibold">${egi.toLocaleString()}</span></div>
+            <div className="flex justify-between"><span className="text-gray-600">Operating Exp</span><span className="font-semibold">${operatingExpenses.toLocaleString()}</span></div>
+            <div className="flex justify-between"><span className="text-gray-600">NOI</span><span className="font-semibold">${noi.toLocaleString()}</span></div>
+            <div className="flex justify-between"><span className="text-gray-600">Debt Service</span><span className="font-semibold">${annualDebtService.toLocaleString()}</span></div>
+            <div className="flex justify-between"><span className="text-gray-600">Cash Flow</span><span className={`font-semibold ${annualCashFlow < 0 ? "text-rose-600" : "text-green-700"}`}>${annualCashFlow.toLocaleString()}</span></div>
+            <div className="flex justify-between"><span className="text-gray-600">Cap Rate</span><span className="font-semibold">{capRate.toFixed(2)}%</span></div>
+            <div className="flex justify-between"><span className="text-gray-600">Cash-on-Cash</span><span className="font-semibold">{coc.toFixed(2)}%</span></div>
+          </div>
+
+          <div className="rounded-lg bg-blue-50 p-3 text-sm space-y-1">
+            <div className="flex justify-between"><span className="text-blue-900">Depreciation (annual)</span><span className="font-semibold text-blue-900">${depreciationAnnual.toFixed(0)}</span></div>
+            <div className="flex justify-between"><span className="text-blue-900">Taxable Income</span><span className="font-semibold text-blue-900">${taxableIncome.toFixed(0)}</span></div>
+            <div className="flex justify-between"><span className="text-blue-900">State Tax (est.)</span><span className="font-semibold text-blue-900">${estStateTax.toFixed(0)}</span></div>
+            <div className="flex justify-between"><span className="text-blue-900">After-Tax Cash Flow</span><span className="font-semibold text-blue-900">${afterTaxCashFlow.toFixed(0)}</span></div>
+          </div>
+        </section>
       </div>
+
+      {/* Chart */}
+      <div className="mt-6 h-72 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData}>
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip formatter={(v) => `$${Math.round(v).toLocaleString()}`} />
+            <Legend />
+            <Bar dataKey="value" name="Amount" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      <footer className="mt-6 rounded-lg bg-blue-50 p-4 text-sm text-blue-900">
+        <ul className="list-disc pl-5 space-y-1">
+          <li>State property-tax rate from dataset; county/city may vary.</li>
+          <li>Tax section is simplified. Consult a CPA for full federal and state treatment.</li>
+          <li>Adjust vacancy, repairs, and management to your market’s reality.</li>
+        </ul>
+      </footer>
     </div>
   );
 }
-
-export default LandlordProfitabilityTool;
