@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "mustwants-calculators",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "VetMover - Military Real Estate Calculators for home buyers and renters",
   "scripts": {
     "dev": "vite",
@@ -10,13 +10,21 @@
     "build:staging": "NODE_ENV=staging vite build",
     "build:preview": "NODE_ENV=preview vite build",
     "build:branch": "NODE_ENV=development vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "fetch:basepay": "node src/scripts/fetchBasePay.js",
+    "fetch:disability": "node src/scripts/fetchDisabilityRates.js",
+    "build:data": "node src/scripts/buildDataset.js",
+    "update:data": "npm run fetch:basepay && npm run fetch:disability && npm run build:data",
+    "release:data": "npm run update:data && git add src/data/masterData.json && git commit -m 'Annual Data Update: DFAS + VA + SBP' && git tag -a data-$(date +%Y).1 -m 'Updated DFAS & VA rates for $(date +%Y)' && git push origin main --tags"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.4",
     "@vitejs/plugin-react": "^5.0.2",
     "autoprefixer": "^10.4.14",
     "chart.js": "^4.5.0",
+    "cheerio": "^1.1.2",
+    "jsdom": "^27.0.0",
+    "node-fetch": "^3.3.2",
     "postcss": "^8.4.24",
     "react": "^18.2.0",
     "react-chartjs-2": "^5.3.0",
@@ -24,5 +32,11 @@
     "recharts": "^3.2.1",
     "tailwindcss": "^3.4.1",
     "vite": "^7.1.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.2.0"
   }
 }
+

@@ -1,150 +1,209 @@
-//PATH calculators/src/SBPDecisionCalculators.jsx
+//PATH calculators/src/SBPDecisionCalculator.jsx
 
-import React, { useState } from 'react';
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer,
-} from 'recharts';
+import React, { useState, useMemo } from "react";
+import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import masterData from "./data/masterData.json";
 
-function SBPDecisionCalculator() {
-  const [inputs, setInputs] = useState({
-    yourAge: 47,
-    spouseAge: 40,
-    yearsService: 24,
-    pensionBase: 6000,     // months retirement pay basis
-    assets: 0,
-    expectedReturn: 0.06,  // 6%
-    taxRate: 0.22,         // 22%
-    lifeInsuranceCost: 0,  // annual cost of a life insurer path
-    lifeInsuranceFace: 0,  // face value
-  });
+// Insurance rates last verified: Jan 2025 (NerdWallet composite averages, 20-year term, non-smoker)
+const lifeInsuranceRates = {
+  male: [
+    { min: 30, max: 39, monthly: 23 },
+    { min: 40, max: 49, monthly: 33 },
+    { min: 50, max: 59, monthly: 73 },
+    { min: 60, max: 69, monthly: 183 },
+    { min: 70, max: 120, monthly: 395 },
+  ],
+  female: [
+    { min: 30, max: 39, monthly: 19 },
+    { min: 40, max: 49, monthly: 28 },
+    { min: 50, max: 59, monthly: 56 },
+    { min: 60, max: 69, monthly: 132 },
+    { min: 70, max: 120, monthly: 285 },
+  ],
+};
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setInputs(prev => ({
-      ...prev,
-      [name]: parseFloat(value),
-    }));
-  };
+function getLifeInsuranceRate(age, gender) {
+  const group = lifeInsuranceRates[gender.toLowerCase()] || [];
+  const match = group.find((g) => age >= g.min && age <= g.max);
+  return match ? match.monthly * 12 : 0; // annual cost
+}
 
-  // Helper: compute SBP premium (approx 6.5% of the base)
-  function computeSBPPremium() {
-    // base = pensionBase * 12 (annual)
-    const annualBase = inputs.pensionBase * 12;
-    const premium = 0.065 * annualBase;
-    return premium;
-  }
+export default function SBPDecisionCalculator() {
+  const [rank, setRank] = useState("E-5");
+  const [years, setYears] = useState(20);
+  const [age, setAge] = useState(45);
+  const [gender, setGender] = useState("male");
+  const [spouseAge, setSpouseAge] = useState(43);
+  const [lifeExpectancy, setLifeExpectancy] = useState(85);
+  const [insuranceAmount, setInsuranceAmount] = useState(500000);
+  const [interestRate, setInterestRate] = useState(3.5);
 
-  // Compute SBP benefit (annual) to spouse if you die
-  function computeSBPBenefit() {
-    const annualBase = inputs.pensionBase * 12;
-    const benefit = 0.55 * annualBase;
-    return benefit;
-  }
+  const sbpRate = 0.065;
+  const survivorPct = 0.55;
 
-  // Project future values over N years: SBP path and investment path
-  function makeProjections(durationYears = 40) {
-    const premium = computeSBPPremium();
-    const benefit = computeSBPBenefit();
-    const r = inputs.expectedReturn;
-    const t = inputs.taxRate;
+  const basePay = masterData.basePay[rank]?.[years] || 0;
+  const sbpMonthly = basePay * sbpRate;
+  const sbpAnnual = sbpMonthly * 12;
+  const sbpBenefit = basePay * survivorPct;
+  const lifeAnnualCost = getLifeInsuranceRate(age, gender);
 
-    // arrays for chart
-    const data = [];
+  // Build cumulative data
+  const chartData = useMemo(() => {
+    const yearsArr = [];
+    let sbpCost = 0;
+    let lifeCost = 0;
+    let sbpBenefitCum = 0;
+    let lifeBenefitCum = 0;
+    const interest = interestRate / 100;
 
-    // For “self-invest / life insurance” path: assume you pay life insurance + invest remainder
-    // Lump sum invested each year = premium savings
-    // For simplicity assume at death of spouse you pay out face value and residual invested capital.
+    for (let i = 1; i <= lifeExpectancy - age; i++) {
+      const currentAge = age + i;
+      const stillPayingSBP = i <= 30 && currentAge < 70;
+      const sbpThisYear = stillPayingSBP ? sbpAnnual : 0;
+      const lifeThisYear = i <= 20 ? lifeAnnualCost : 0;
 
-    // For SBP path: you pay premiums until “paid-up” or death, then spouse gets annuity
+      sbpCost += sbpThisYear;
+      lifeCost += lifeThisYear;
 
-    // We'll model both paths in a simplified way:
-    let investBalance = 0;
-    let cumulativePremiums = 0;
-
-    for (let year = 0; year <= durationYears; year++) {
-      // SBP: spouse gets benefit if you died that year
-      const sbpPayout = year > 0 ? benefit : 0;
-
-      // Investment path:
-      // Each year you “save” the premium — you don’t pay SBP, you invest that instead
-      if (year > 0) {
-        investBalance = investBalance * (1 + r) + premium;
-        cumulativePremiums += premium;
+      // Benefits start after member's death — assume death at lifeExpectancy
+      if (i >= lifeExpectancy - age) {
+        sbpBenefitCum += sbpBenefit * (1 + interest) ** (lifeExpectancy - age - i);
+        lifeBenefitCum += insuranceAmount;
       }
-      // At spouse death assumed at end, you “pay life insurance face value”
-      const investNet = investBalance + inputs.assets - inputs.lifeInsuranceCost * year - inputs.lifeInsuranceFace;
 
-      data.push({
-        year,
-        SBP: sbpPayout,
-        InvestmentNet: investNet,
-        InvestBalance: investBalance,
+      yearsArr.push({
+        year: i,
+        SBP_Cost: sbpCost,
+        Life_Cost: lifeCost,
+        SBP_Benefit: sbpBenefitCum,
+        Life_Benefit: lifeBenefitCum,
       });
     }
+    return yearsArr;
+  }, [age, gender, basePay, sbpAnnual, sbpBenefit, lifeAnnualCost, lifeExpectancy, interestRate, insuranceAmount]);
 
-    return data;
-  }
-
-  const chartData = makeProjections(40);
-  const premium = computeSBPPremium();
-  const benefit = computeSBPBenefit();
-
-  // Final decision (very simplified)
-  // Compare present values roughly: benefit / premium > threshold?
-  const ratio = benefit / premium;
-  const recommendation = ratio > 1.5
-    ? "Take SBP"
-    : "Consider life insurance / self-invest path";
+  const last = chartData[chartData.length - 1] || {};
+  const recommendation =
+    last.SBP_Benefit > last.Life_Benefit
+      ? `SBP provides greater lifetime value beyond age ${lifeExpectancy}.`
+      : `Life insurance provides greater payout or flexibility before age ${lifeExpectancy}.`;
 
   return (
-    <div className="sbp-calculator p-4 border rounded">
-      <h2>SBP vs Insurance Decision Calculator</h2>
-      <div className="inputs grid grid-cols-2 gap-4">
-        {[
-          { label: "Your Age", name: "yourAge" },
-          { label: "Spouse Age", name: "spouseAge" },
-          { label: "Years of Service", name: "yearsService" },
-          { label: "Monthly Pension Base ($)", name: "pensionBase" },
-          { label: "Current Assets ($)", name: "assets" },
-          { label: "Expected Return (decimal)", name: "expectedReturn" },
-          { label: "Tax Rate (decimal)", name: "taxRate" },
-          { label: "Life Insurance Cost / yr ($)", name: "lifeInsuranceCost" },
-          { label: "Life Insurance Face Value ($)", name: "lifeInsuranceFace" },
-        ].map(({ label, name }) => (
-          <div key={name} className="input-item">
-            <label>{label}</label>
-            <input
-              type="number"
-              name={name}
-              value={inputs[name]}
-              onChange={handleChange}
-              className="border px-2 py-1 w-full"
-            />
-          </div>
-        ))}
+    <div className="max-w-5xl mx-auto p-6 bg-white rounded-2xl shadow">
+      <h1 className="text-2xl font-bold mb-6 text-center">SBP vs Life Insurance Decision Calculator</h1>
+
+      {/* Input Grid */}
+      <div className="grid md:grid-cols-2 gap-6 mb-8">
+        <div>
+          <label className="block text-sm font-medium mb-1">Rank</label>
+          <select value={rank} onChange={(e) => setRank(e.target.value)} className="w-full border rounded p-2">
+            {Object.keys(masterData.basePay).map((r) => (
+              <option key={r}>{r}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Years of Service</label>
+          <input
+            type="number"
+            value={years}
+            min="2"
+            max="40"
+            onChange={(e) => setYears(Number(e.target.value))}
+            className="w-full border rounded p-2"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Your Age</label>
+          <input
+            type="number"
+            value={age}
+            onChange={(e) => setAge(Number(e.target.value))}
+            className="w-full border rounded p-2"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Spouse Age</label>
+          <input
+            type="number"
+            value={spouseAge}
+            onChange={(e) => setSpouseAge(Number(e.target.value))}
+            className="w-full border rounded p-2"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Gender</label>
+          <select value={gender} onChange={(e) => setGender(e.target.value)} className="w-full border rounded p-2">
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Expected Life Expectancy</label>
+          <input
+            type="number"
+            value={lifeExpectancy}
+            min={age + 1}
+            max="100"
+            onChange={(e) => setLifeExpectancy(Number(e.target.value))}
+            className="w-full border rounded p-2"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Life Insurance Coverage ($)</label>
+          <input
+            type="number"
+            value={insuranceAmount}
+            onChange={(e) => setInsuranceAmount(Number(e.target.value))}
+            className="w-full border rounded p-2"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Investment Interest Rate (%)</label>
+          <input
+            type="number"
+            value={interestRate}
+            step="0.1"
+            onChange={(e) => setInterestRate(Number(e.target.value))}
+            className="w-full border rounded p-2"
+          />
+        </div>
       </div>
 
-      <div className="outputs my-4">
-        <p>Estimated SBP Premium: ${premium.toFixed(2)} / yr</p>
-        <p>Estimated SBP Beneficiary Annuity: ${benefit.toFixed(2)} / yr</p>
-        <p>Benefit / Premium Ratio: {ratio.toFixed(2)}</p>
-        <h3>Recommendation: <strong>{recommendation}</strong></h3>
+      {/* Summary */}
+      <div className="bg-gray-50 p-4 rounded-lg mb-6">
+        <p>Base Pay: <b>${basePay.toLocaleString()}</b>/mo</p>
+        <p>SBP Premium: <b>${sbpMonthly.toFixed(2)}</b>/mo ({(sbpRate * 100).toFixed(1)}%)</p>
+        <p>SBP Survivor Benefit: <b>${sbpBenefit.toFixed(2)}</b>/mo ({(survivorPct * 100).toFixed(0)}% of base pay)</p>
+        <p>Life Insurance Cost: <b>${lifeAnnualCost.toFixed(2)}</b>/yr (average for {gender})</p>
       </div>
 
-      <div style={{ width: "100%", height: 400 }}>
-        <ResponsiveContainer>
-          <BarChart data={chartData}>
-            <XAxis dataKey="year" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey="SBP" fill="#8884d8" name="Annual SBP Payout" />
-            <Bar dataKey="InvestBalance" fill="#82ca9d" name="Investment Balance" />
-          </BarChart>
-        </ResponsiveContainer>
+      {/* Chart */}
+      <ResponsiveContainer width="100%" height={350}>
+        <LineChart data={chartData}>
+          <XAxis dataKey="year" label={{ value: "Years from Now", position: "insideBottom", offset: -5 }} />
+          <YAxis />
+          <Tooltip formatter={(v) => `$${Math.round(v).toLocaleString()}`} />
+          <Legend />
+          <Line type="monotone" dataKey="SBP_Cost" stroke="#2563eb" name="SBP Cumulative Cost" />
+          <Line type="monotone" dataKey="Life_Cost" stroke="#f97316" name="Life Cumulative Cost" />
+          <Line type="monotone" dataKey="SBP_Benefit" stroke="#22c55e" name="SBP Benefit Value" strokeDasharray="5 5" />
+          <Line type="monotone" dataKey="Life_Benefit" stroke="#e11d48" name="Life Benefit Value" strokeDasharray="5 5" />
+        </LineChart>
+      </ResponsiveContainer>
+
+      {/* Recommendation */}
+      <div className="mt-6 p-4 border-l-4 border-blue-500 bg-blue-50 rounded">
+        <h2 className="font-semibold text-lg mb-1">Recommendation</h2>
+        <p>{recommendation}</p>
       </div>
     </div>
   );
 }
-
-export default SBPDecisionCalculator;

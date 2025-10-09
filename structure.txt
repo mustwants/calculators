@@ -1,0 +1,83 @@
+tree -I "node_modules|.git" -L 4 > structure.txt
+.
+├── DEPLOYMENT.md
+├── DEPLOYMENT_TROUBLESHOOTING.md
+├── DNS_FIX_GUIDE.md
+├── FINAL_AUDIT_SUMMARY.md
+├── LICENSE
+├── MANUAL_DEPLOYMENT_GUIDE.md
+├── MortgageCalculator.swift
+├── NETLIFY_DEPLOY_SUBDOMAINS_GUIDE.md
+├── NETLIFY_SETUP_INSTRUCTIONS.md
+├── NETLIFY_SSL_TROUBLESHOOTING.md
+├── README.md
+├── SEO_AUDIT_REPORT.md
+├── SSL_CERTIFICATE_FIX.md
+├── deployment-verification.txt
+├── dist
+│   ├── _redirects
+│   ├── assets
+│   │   ├── charts-BRi9X1qh.js
+│   │   ├── index-CQDOQL1O.css
+│   │   ├── index-yyxm1tbn.js
+│   │   └── vendor-D3F3s8fL.js
+│   ├── index.html
+│   ├── manifest.json
+│   ├── robots.txt
+│   └── sitemap.xml
+├── index.html
+├── netlify.toml
+├── package-chartjs.json
+├── package-lock.json
+├── package.json
+├── postcss.config.js
+├── public
+│   ├── _redirects
+│   ├── manifest.json
+│   ├── robots.txt
+│   └── sitemap.xml
+├── src
+│   ├── App.jsx
+│   ├── BAHCalculator.jsx
+│   ├── BuyVsRentCalculator.jsx
+│   ├── CapitalGainsExclusionCalculator.jsx
+│   ├── DTIBAHCalculator.jsx
+│   ├── DepreciationRecaptureEstimator.jsx
+│   ├── EquityGrowthCalculator.jsx
+│   ├── ErrorBoundary.jsx
+│   ├── GIBillHousingStipendEstimator.jsx
+│   ├── Header.jsx
+│   ├── HeroSection.jsx
+│   ├── LandlordProfitabilityTool.jsx
+│   ├── MilitaryRetirementTSPTool.jsx
+│   ├── MortgageCalculator.jsx
+│   ├── PCSDeductionCalculator.jsx
+│   ├── PropertyTaxCalculator.jsx
+│   ├── RefinanceVsPCSSellTool.jsx
+│   ├── RentCalculator.jsx
+│   ├── SBPDecisionCalculator.jsx
+│   ├── SBPVsLifeInsuranceCalculator.jsx
+│   ├── data
+│   │   ├── basePay_2025.json
+│   │   ├── disabilityRates_2025.json
+│   │   ├── masterData.json
+│   │   ├── nationalAverages.js
+│   │   ├── nationalAverages.json
+│   │   ├── nationalAverages.json.backup
+│   │   └── stateTaxAndBenefits.json
+│   ├── index.css
+│   ├── main.jsx
+│   ├── scripts
+│   │   ├── buildDataset.js
+│   │   ├── fetchBasePay.js
+│   │   └── fetchDisabilityRates.js
+│   ├── supabaseClient.js
+│   ├── utils
+│   │   └── loadStateTaxData.js
+│   └── utils.js
+├── structure.txt
+├── supabaseClient.js
+├── tailwind.config.js
+└── vite.config.mjs
+
+8 directories, 72 files
