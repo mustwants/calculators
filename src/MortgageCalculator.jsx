@@ -6,161 +6,167 @@ import {
   Bar,
   XAxis,
   YAxis,
-  Legend,
   Tooltip,
-  PieChart,
-  Pie,
-  Cell,
+  Legend,
+  LineChart,
+  Line,
 } from "recharts";
 import { listStateOptions, getState } from "./utils/loadStateTaxData";
 
 /**
- * Mortgage Calculator — Military-aware
- * - Fixed-rate, fully amortizing.
- * - VA loan toggle with Funding Fee (financed or paid upfront).
- * - PMI for non-VA until LTV ≤ 80% (simple % of original balance).
- * - Property tax prefilled from state dataset when available.
- * - Insurance percent of value, HOA monthly.
- * - Shows payment breakdown and 10-year principal vs interest.
- *
+ * Mortgage Calculator — VA-aware, state tax & insurance aware
+ * - Supports VA and non-VA loans (funding fee logic, PMI on non-VA until 80% LTV).
+ * - Auto-prefills property tax and rough homeowners insurance from state dataset.
+ * - Breaks down monthly payment: P&I, tax, insurance, HOA, PMI.
+ * - Amortization preview and total cost over horizon.
  * Planner only. Not advice.
  */
 
-function pct(x) {
-  const n = Number(x);
-  return Number.isFinite(n) ? n / 100 : 0;
-}
 function n(x) {
   const v = Number(x);
   return Number.isFinite(v) ? v : 0;
 }
-function money(v) {
-  return `$${Math.round(n(v)).toLocaleString()}`;
+function pct(x) {
+  const v = Number(x);
+  return Number.isFinite(v) ? v / 100 : 0;
+}
+function money(x) {
+  return `$${Math.round(n(x)).toLocaleString()}`;
 }
 
 export default function MortgageCalculator() {
-  // State taxes
+  // State dataset for taxes/insurance defaults
   const states = useMemo(() => listStateOptions(), []);
   const [stateCode, setStateCode] = useState("VA");
   const stateMeta = getState(stateCode);
+
   const inferredPropTaxPct =
     stateMeta?.tax?.property?.effectiveRatePct ??
     stateMeta?.tax?.property?.notes?.defaultRatePct ??
     1.0;
 
-  // Price + financing
+  // Heuristic insurance default by state (editable)
+  const inferredInsPct =
+    stateMeta?.tax?.property?.notes?.insurancePct ??
+    0.35; // % of home value per year
+
+  // Inputs
   const [price, setPrice] = useState(450_000);
-  const [downPct, setDownPct] = useState(5);
-  const [ratePct, setRatePct] = useState(6.25);
-  const [termYears, setTermYears] = useState(30);
-
-  // Costs
-  const [propTaxPct, setPropTaxPct] = useState(inferredPropTaxPct);
-  const [insPct, setInsPct] = useState(0.35);
-  const [hoaMonthly, setHoaMonthly] = useState(0);
-
-  // PMI (non-VA)
-  const [pmiEnabled, setPmiEnabled] = useState(true);
-  const [pmiAnnualPct, setPmiAnnualPct] = useState(0.6); // of original balance until 80% LTV
-
-  // VA specific
+  const [downPct, setDownPct] = useState(0); // keep 0 for VA by default
   const [isVA, setIsVA] = useState(true);
   const [firstUse, setFirstUse] = useState(true);
   const [financeFundingFee, setFinanceFundingFee] = useState(true);
 
-  // VA Funding Fee matrix (simplified defaults)
-  // First use: 2.15% (down <5%), 1.5% (5–9.99%), 1.25% (>=10%)
-  // Subsequent: 3.3% (<5%), 1.5% (5–9.99%), 1.25% (>=10%)
+  const [ratePct, setRatePct] = useState(6.25);
+  const [termYears, setTermYears] = useState(30);
+  const [pointsPct, setPointsPct] = useState(0); // optional discount points
+  const [originationPct, setOriginationPct] = useState(1.0); // lender+title estimate
+  const [hoaMonthly, setHoaMonthly] = useState(0);
+
+  const [propTaxPct, setPropTaxPct] = useState(inferredPropTaxPct);
+  const [insPct, setInsPct] = useState(inferredInsPct);
+
+  // PMI settings for non-VA
+  const [pmiAnnualPct, setPmiAnnualPct] = useState(0.6);
+
+  // Functions
   function vaFundingFeeRate(downP, first) {
+    // Simplified 2024+ table
     if (downP >= 10) return 1.25;
-    if (downP >= 5) return 1.5;
-    return first ? 2.15 : 3.3;
+    if (downP >= 5) return 1.50;
+    return first ? 2.15 : 3.30;
   }
 
-  // Derived amounts
-  const downPayment = price * pct(downPct);
-
-  // Base loan before funding fee
-  const baseLoan = Math.max(0, price - (isVA ? 0 : downPayment));
-
-  // Funding fee
+  // Loan amounts
+  const down = isVA ? 0 : price * pct(downPct);
+  const baseLoan = Math.max(0, price - down);
   const ffRate = isVA ? vaFundingFeeRate(downPct, firstUse) : 0;
-  const fundingFee = baseLoan * pct(ffRate);
-
-  // Final loan amount
+  const fundingFee = isVA ? baseLoan * pct(ffRate) : 0;
   const loanAmount = isVA
-    ? (financeFundingFee ? baseLoan + fundingFee : baseLoan)
-    : Math.max(0, price - downPayment);
+    ? financeFundingFee
+      ? baseLoan + fundingFee
+      : baseLoan
+    : baseLoan;
 
-  // Rate/Term
+  // Pricing adjustments
+  const pointsCost = price * pct(pointsPct);
+  const originationCost = price * pct(originationPct);
+
+  // Mortgage payment
   const r = pct(ratePct) / 12;
   const nper = termYears * 12;
-  const monthlyPI =
-    r === 0 ? loanAmount / nper : (loanAmount * r) / (1 - Math.pow(1 + r, -nper));
+  const monthlyPI = r === 0 ? loanAmount / nper : (loanAmount * r) / (1 - Math.pow(1 + r, -nper));
 
-  // Monthly escrows on current value (approx)
+  // Taxes, insurance
   const taxMonthly = (price * pct(propTaxPct)) / 12;
   const insMonthly = (price * pct(insPct)) / 12;
 
-  // PMI monthly (non-VA) until LTV ≤ 80% — we show current-month approximation
-  const initialLTV = isVA ? (loanAmount / price) : ((loanAmount) / price);
-  const pmiMonthlyApprox =
-    !isVA && pmiEnabled && initialLTV > 0.8
-      ? ( (price - downPayment) * pct(pmiAnnualPct) ) / 12
-      : 0;
+  // PMI (non-VA, until LTV <= 80%)
+  const pmiStartMonthly = !isVA && loanAmount / price > 0.8 ? (loanAmount * pct(pmiAnnualPct)) / 12 : 0;
 
-  const piti = monthlyPI + taxMonthly + insMonthly + hoaMonthly + pmiMonthlyApprox;
+  // Build an amortization preview and detect PMI cutoff
+  const previewYears = Math.min(10, termYears); // limit chart volume
+  const previewMonths = previewYears * 12;
+  let bal = loanAmount;
+  let pmiActive = pmiStartMonthly > 0;
+  let pmiCutoffMonth = null;
 
-  // 10-year amortization breakdown
-  const amort = useMemo(() => {
-    let bal = loanAmount;
-    let rows = [];
-    let totalInterest = 0;
-    let totalPrincipal = 0;
+  const line = [];
+  for (let m = 1; m <= previewMonths; m++) {
+    const interest = bal * r;
+    const principal = Math.min(bal, monthlyPI - interest);
+    bal = Math.max(0, bal - principal);
 
-    for (let m = 1; m <= Math.min(120, nper); m++) {
-      const interest = bal * r;
-      const principal = Math.min(bal, monthlyPI - interest);
-      bal = Math.max(0, bal - principal);
-
-      totalInterest += interest;
-      totalPrincipal += principal;
-
-      if (m % 12 === 0 || m === nper) {
-        rows.push({
-          year: m / 12,
-          Interest: Math.round(totalInterest),
-          Principal: Math.round(totalPrincipal),
-          Balance: Math.round(bal),
-        });
-      }
+    // PMI cutoff check by current LTV vs original value
+    if (pmiActive && bal / price <= 0.80) {
+      pmiActive = false;
+      pmiCutoffMonth = m;
     }
-    return rows;
-  }, [loanAmount, monthlyPI, r, nper]);
 
-  // Payment breakdown pie
-  const pieData = [
-    { name: "Principal+Interest", value: monthlyPI },
-    { name: "Property Tax", value: taxMonthly },
+    const pmi = pmiActive ? pmiStartMonthly : 0;
+    const piti = monthlyPI + taxMonthly + insMonthly + pmi + hoaMonthly;
+
+    if (m % 12 === 0 || m === previewMonths) {
+      line.push({
+        month: m,
+        year: m / 12,
+        Balance: Math.round(bal),
+        PrincipalYTD: Math.round((monthlyPI - interest) + 0), // last month principal
+        PITI: Math.round(piti),
+      });
+    }
+  }
+
+  // Current monthly snapshot
+  const currentPMIActive = pmiStartMonthly > 0; // initial month
+  const monthlyPaymentNow = monthlyPI + taxMonthly + insMonthly + (currentPMIActive ? pmiStartMonthly : 0) + hoaMonthly;
+
+  // Cost summary at close
+  const cashAtClose =
+    (isVA ? 0 : down) + (financeFundingFee ? 0 : fundingFee) + pointsCost + originationCost;
+
+  // Chart bars
+  const bars = [
+    { name: "Principal & Interest", value: monthlyPI },
+    { name: "Property tax", value: taxMonthly },
     { name: "Insurance", value: insMonthly },
-    { name: "PMI", value: pmiMonthlyApprox },
+    { name: "PMI", value: currentPMIActive ? pmiStartMonthly : 0 },
     { name: "HOA", value: hoaMonthly },
-  ].filter((s) => s.value > 0.5);
+  ];
 
   return (
     <div className="max-w-6xl mx-auto my-8 p-6 bg-white rounded-2xl shadow">
       <header className="mb-6">
         <h1 className="text-2xl font-bold text-blue-800">🏠 Mortgage Calculator</h1>
         <p className="text-sm text-gray-600">
-          Fixed-rate payment with VA option, funding fee, PMI, and state-prefilled property tax.
+          VA-aware payment breakdown with state-based taxes and insurance. Amortization preview included.
         </p>
       </header>
 
       <div className="grid xl:grid-cols-4 gap-6">
-        {/* State & Policy */}
+        {/* State & Taxes */}
         <section className="rounded-xl border p-4 space-y-3">
-          <h2 className="font-semibold text-gray-800">State & Policy</h2>
-
+          <h2 className="font-semibold text-gray-800">State & Taxes</h2>
           <div>
             <label className="block text-sm font-medium text-gray-700">State</label>
             <select
@@ -170,11 +176,14 @@ export default function MortgageCalculator() {
                 const code = e.target.value;
                 setStateCode(code);
                 const meta = getState(code);
-                const next =
+                const nextTax =
                   meta?.tax?.property?.effectiveRatePct ??
                   meta?.tax?.property?.notes?.defaultRatePct ??
                   propTaxPct;
-                setPropTaxPct(Number(next));
+                const nextIns =
+                  meta?.tax?.property?.notes?.insurancePct ?? insPct;
+                setPropTaxPct(Number(nextTax));
+                setInsPct(Number(nextIns));
               }}
             >
               {states.map((s) => (
@@ -185,93 +194,80 @@ export default function MortgageCalculator() {
             </select>
           </div>
 
-          <div className="flex items-center gap-2">
-            <input
-              id="isva"
-              type="checkbox"
-              className="h-4 w-4"
-              checked={isVA}
-              onChange={(e) => setIsVA(e.target.checked)}
-            />
-            <label htmlFor="isva" className="text-sm text-gray-700">VA Loan</label>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Property tax (%/yr)</label>
+              <input
+                type="number"
+                className="mt-1 w-full rounded-md border p-2"
+                value={propTaxPct}
+                min={0}
+                max={5}
+                step="0.05"
+                onChange={(e) => setPropTaxPct(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Insurance (%/yr)</label>
+              <input
+                type="number"
+                className="mt-1 w-full rounded-md border p-2"
+                value={insPct}
+                min={0}
+                max={2}
+                step="0.05"
+                onChange={(e) => setInsPct(Number(e.target.value))}
+              />
+            </div>
           </div>
 
-          {isVA ? (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <input
-                  id="firstuse"
-                  type="checkbox"
-                  className="h-4 w-4"
-                  checked={firstUse}
-                  onChange={(e) => setFirstUse(e.target.checked)}
-                />
-                <label htmlFor="firstuse" className="text-sm text-gray-700">First-use funding fee</label>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  id="financeff"
-                  type="checkbox"
-                  className="h-4 w-4"
-                  checked={financeFundingFee}
-                  onChange={(e) => setFinanceFundingFee(e.target.checked)}
-                />
-                <label htmlFor="financeff" className="text-sm text-gray-700">Finance funding fee</label>
-              </div>
-              <div className="rounded-md bg-blue-50 p-2 text-xs text-blue-900">
-                Estimated VA Funding Fee Rate: <b>{vaFundingFeeRate(downPct, firstUse).toFixed(2)}%</b>
-                <br />
-                Estimated Funding Fee: <b>{money(fundingFee)}</b>
-              </div>
+          <div className="rounded-lg bg-gray-50 p-3 text-sm space-y-1">
+            <div className="flex justify-between">
+              <span className="text-gray-700">Tax monthly</span>
+              <span className="font-semibold">{money(taxMonthly)}</span>
             </div>
-          ) : (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <input
-                  id="pmi"
-                  type="checkbox"
-                  className="h-4 w-4"
-                  checked={pmiEnabled}
-                  onChange={(e) => setPmiEnabled(e.target.checked)}
-                />
-                <label htmlFor="pmi" className="text-sm text-gray-700">Apply PMI until 80% LTV</label>
-              </div>
-              {pmiEnabled && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">PMI Rate (annual %)</label>
-                  <input
-                    type="number"
-                    className="mt-1 w-full rounded-md border p-2"
-                    value={pmiAnnualPct}
-                    min={0}
-                    max={2}
-                    step="0.05"
-                    onChange={(e) => setPmiAnnualPct(Number(e.target.value))}
-                  />
-                </div>
-              )}
+            <div className="flex justify-between">
+              <span className="text-gray-700">Insurance monthly</span>
+              <span className="font-semibold">{money(insMonthly)}</span>
             </div>
-          )}
+          </div>
         </section>
 
         {/* Price & Loan */}
         <section className="rounded-xl border p-4 space-y-3">
           <h2 className="font-semibold text-gray-800">Price & Loan</h2>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Home Price ($)</label>
-            <input
-              type="number"
-              className="mt-1 w-full rounded-md border p-2"
-              value={price}
-              min={50_000}
-              onChange={(e) => setPrice(Number(e.target.value))}
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Home price ($)</label>
+              <input
+                type="number"
+                className="mt-1 w-full rounded-md border p-2"
+                value={price}
+                min={50_000}
+                onChange={(e) => setPrice(Number(e.target.value))}
+              />
+            </div>
+            <div className="flex items-center gap-2 mt-6">
+              <input
+                id="isva"
+                type="checkbox"
+                className="h-4 w-4"
+                checked={isVA}
+                onChange={(e) => {
+                  setIsVA(e.target.checked);
+                  if (e.target.checked) setDownPct(0);
+                }}
+              />
+              <label htmlFor="isva" className="text-sm text-gray-700">
+                VA loan
+              </label>
+            </div>
           </div>
 
           {!isVA && (
             <div>
-              <label className="block text-sm font-medium text-gray-700">Down Payment (%)</label>
+              <label className="block text-sm font-medium text-gray-700">Down payment (%)</label>
               <input
                 type="number"
                 className="mt-1 w-full rounded-md border p-2"
@@ -284,7 +280,60 @@ export default function MortgageCalculator() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          {isVA && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center gap-2">
+                <input
+                  id="firstuse"
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={firstUse}
+                  onChange={(e) => setFirstUse(e.target.checked)}
+                />
+                <label htmlFor="firstuse" className="text-sm text-gray-700">
+                  First-use funding fee
+                </label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  id="financeff"
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={financeFundingFee}
+                  onChange={(e) => setFinanceFundingFee(e.target.checked)}
+                />
+                <label htmlFor="financeff" className="text-sm text-gray-700">
+                  Finance funding fee
+                </label>
+              </div>
+            </div>
+          )}
+
+          <div className="rounded-lg bg-gray-50 p-3 text-xs space-y-1">
+            <div className="flex justify-between">
+              <span className="text-gray-700">Funding fee rate</span>
+              <span className="font-semibold">{ffRate.toFixed(2)}%</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-700">Funding fee</span>
+              <span className="font-semibold">{money(fundingFee)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-700">Base loan</span>
+              <span className="font-semibold">{money(baseLoan)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-700">Final loan amount</span>
+              <span className="font-semibold">{money(loanAmount)}</span>
+            </div>
+          </div>
+        </section>
+
+        {/* Rate & Costs */}
+        <section className="rounded-xl border p-4 space-y-3">
+          <h2 className="font-semibold text-gray-800">Rate & Costs</h2>
+
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700">Rate (APR %)</label>
               <input
@@ -308,164 +357,155 @@ export default function MortgageCalculator() {
                 onChange={(e) => setTermYears(Number(e.target.value))}
               />
             </div>
-          </div>
-
-          <div className="rounded-lg bg-gray-50 p-3 text-sm space-y-1">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Down Payment</span>
-              <span className="font-semibold">{money(isVA ? 0 : downPayment)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Loan Amount</span>
-              <span className="font-semibold">{money(loanAmount)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">P&I (monthly)</span>
-              <span className="font-semibold">{money(monthlyPI)}</span>
-            </div>
-          </div>
-        </section>
-
-        {/* Escrows & HOA */}
-        <section className="rounded-xl border p-4 space-y-3">
-          <h2 className="font-semibold text-gray-800">Escrows & HOA</h2>
-
-          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Property Tax (%/yr)</label>
+              <label className="block text-sm font-medium text-gray-700">HOA ($/mo)</label>
               <input
                 type="number"
                 className="mt-1 w-full rounded-md border p-2"
-                value={propTaxPct}
+                value={hoaMonthly}
                 min={0}
-                max={5}
-                step="0.05"
-                onChange={(e) => setPropTaxPct(Number(e.target.value))}
+                onChange={(e) => setHoaMonthly(Number(e.target.value))}
               />
-              <p className="mt-1 text-xs text-gray-500">Prefilled by state when available.</p>
             </div>
+          </div>
+
+          {!isVA && (
             <div>
-              <label className="block text-sm font-medium text-gray-700">Insurance (%/yr)</label>
+              <label className="block text-sm font-medium text-gray-700">PMI (% of loan / yr)</label>
               <input
                 type="number"
                 className="mt-1 w-full rounded-md border p-2"
-                value={insPct}
+                value={pmiAnnualPct}
                 min={0}
                 max={2}
                 step="0.05"
-                onChange={(e) => setInsPct(Number(e.target.value))}
+                onChange={(e) => setPmiAnnualPct(Number(e.target.value))}
+              />
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Discount points (% of price)</label>
+              <input
+                type="number"
+                className="mt-1 w-full rounded-md border p-2"
+                value={pointsPct}
+                min={0}
+                max={5}
+                step="0.125"
+                onChange={(e) => setPointsPct(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Origination & title (% of price)</label>
+              <input
+                type="number"
+                className="mt-1 w-full rounded-md border p-2"
+                value={originationPct}
+                min={0}
+                max={5}
+                step="0.25"
+                onChange={(e) => setOriginationPct(Number(e.target.value))}
               />
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">HOA ($/mo)</label>
-            <input
-              type="number"
-              className="mt-1 w-full rounded-md border p-2"
-              value={hoaMonthly}
-              min={0}
-              onChange={(e) => setHoaMonthly(Number(e.target.value))}
-            />
+          <div className="rounded-lg bg-gray-50 p-3 text-xs space-y-1">
+            <div className="flex justify-between">
+              <span className="text-gray-700">Points cost</span>
+              <span className="font-semibold">{money(pointsCost)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-700">Origination/title</span>
+              <span className="font-semibold">{money(originationCost)}</span>
+            </div>
+            <div className="flex justify-between border-t pt-2">
+              <span className="text-gray-700">Cash at close</span>
+              <span className="font-semibold">{money(cashAtClose)}</span>
+            </div>
           </div>
+        </section>
+
+        {/* Monthly Summary */}
+        <section className="rounded-xl border p-4 space-y-3">
+          <h2 className="font-semibold text-gray-800">Monthly Summary</h2>
 
           <div className="rounded-lg bg-blue-50 p-3 text-sm space-y-1">
             <div className="flex justify-between">
-              <span className="text-blue-900">Property Tax (mo)</span>
+              <span className="text-blue-900">Principal & interest</span>
+              <span className="font-semibold text-blue-900">{money(monthlyPI)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-blue-900">Property tax</span>
               <span className="font-semibold text-blue-900">{money(taxMonthly)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-blue-900">Insurance (mo)</span>
+              <span className="text-blue-900">Insurance</span>
               <span className="font-semibold text-blue-900">{money(insMonthly)}</span>
             </div>
-            {!isVA && pmiMonthlyApprox > 0 && (
+            {!isVA && pmiStartMonthly > 0 && (
               <div className="flex justify-between">
-                <span className="text-blue-900">PMI (mo)</span>
-                <span className="font-semibold text-blue-900">{money(pmiMonthlyApprox)}</span>
+                <span className="text-blue-900">PMI (until 80% LTV)</span>
+                <span className="font-semibold text-blue-900">{money(pmiStartMonthly)}</span>
+              </div>
+            )}
+            {hoaMonthly > 0 && (
+              <div className="flex justify-between">
+                <span className="text-blue-900">HOA</span>
+                <span className="font-semibold text-blue-900">{money(hoaMonthly)}</span>
               </div>
             )}
             <div className="flex justify-between border-t border-blue-200 pt-2">
-              <span className="text-blue-900">Estimated PITI</span>
-              <span className="font-semibold text-blue-900">{money(piti)}</span>
+              <span className="text-blue-900">Estimated monthly payment</span>
+              <span className="font-semibold text-blue-900">{money(monthlyPaymentNow)}</span>
             </div>
           </div>
-        </section>
 
-        {/* Snapshot */}
-        <section className="rounded-xl border p-4 space-y-3">
-          <h2 className="font-semibold text-gray-800">Snapshot</h2>
-          <div className="rounded-lg bg-gray-50 p-3 text-sm space-y-1">
-            <div className="flex justify-between">
-              <span className="text-gray-700">Initial LTV</span>
-              <span className="font-semibold">{(initialLTV * 100).toFixed(1)}%</span>
-            </div>
-            {isVA && (
-              <>
-                <div className="flex justify-between">
-                  <span className="text-gray-700">Funding Fee Rate</span>
-                  <span className="font-semibold">{ffRate.toFixed(2)}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-700">Funding Fee</span>
-                  <span className="font-semibold">{money(fundingFee)}</span>
-                </div>
-              </>
-            )}
-            <div className="flex justify-between">
-              <span className="text-gray-700">P&I</span>
-              <span className="font-semibold">{money(monthlyPI)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-700">PITI</span>
-              <span className="font-semibold">{money(piti)}</span>
-            </div>
-          </div>
+          {!isVA && pmiStartMonthly > 0 && (
+            <p className="text-xs text-gray-600">
+              PMI auto-estimated to drop when LTV reaches 80%.
+              {pmiCutoffMonth ? ` Preview cutoff ≈ month ${pmiCutoffMonth}.` : ""}
+            </p>
+          )}
         </section>
       </div>
 
-      {/* Payment breakdown pie */}
-      <div className="mt-6 grid lg:grid-cols-2 gap-6">
-        <div className="h-80 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Tooltip formatter={(v) => money(v)} />
-              <Legend />
-              <Pie
-                data={pieData}
-                dataKey="value"
-                nameKey="name"
-                innerRadius="45%"
-                outerRadius="70%"
-                paddingAngle={2}
-              >
-                {pieData.map((_, i) => (
-                  <Cell key={i} />
-                ))}
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
+      {/* Payment breakdown */}
+      <div className="mt-6 h-72 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={bars}>
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip formatter={(v) => money(v)} />
+            <Legend />
+            <Bar dataKey="value" name="Monthly amount" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
 
-        {/* 10-year principal vs interest */}
-        <div className="h-80 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={amort}>
-              <XAxis dataKey="year" />
-              <YAxis />
-              <Tooltip formatter={(v) => money(v)} />
-              <Legend />
-              <Bar dataKey="Principal" />
-              <Bar dataKey="Interest" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+      {/* Amortization preview */}
+      <div className="mt-6 h-80 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={line}>
+            <XAxis dataKey="year" />
+            <YAxis />
+            <Tooltip
+              formatter={(v, n) => [money(v), n]}
+              labelFormatter={(y) => `Year ${y}`}
+            />
+            <Legend />
+            <Line type="monotone" dataKey="Balance" dot={false} />
+            <Line type="monotone" dataKey="PITI" dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
       </div>
 
       <footer className="mt-6 rounded-lg bg-blue-50 p-4 text-sm text-blue-900">
         <ul className="list-disc pl-5 space-y-1">
-          <li>VA funding fee varies by use and down payment; exempt if certain disability ratings apply.</li>
-          <li>PMI shown for non-VA loans until LTV ≤ 80% (simplified estimate).</li>
-          <li>Property tax prefill is an estimate. Local rates vary by county and exemptions.</li>
+          <li>State defaults for taxes and insurance are editable and approximate.</li>
+          <li>VA funding fee varies by use and down payment; tool uses a simplified table.</li>
+          <li>Actual PMI rules and cancellation can vary by investor and servicer.</li>
         </ul>
       </footer>
     </div>
