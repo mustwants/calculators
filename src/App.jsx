@@ -1,8 +1,10 @@
 // PATH: src/App.jsx
-
 import React, { useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+
 import Header from './Header';
 import HeroSection from './HeroSection';
+
 import MortgageCalculator from './MortgageCalculator';
 import RentCalculator from './RentCalculator';
 import BuyVsRentCalculator from './BuyVsRentCalculator';
@@ -19,13 +21,12 @@ import MilitaryRetirementTSPTool from './MilitaryRetirementTSPTool';
 import SBPVsLifeInsuranceCalculator from './SBPVsLifeInsuranceCalculator';
 import GIBillHousingStipendEstimator from './GIBillHousingStipendEstimator';
 import SBPDecisionCalculator from './SBPDecisionCalculator';
-
-// newly added tools
 import PCSStateTaxImpactCalculator from './PCSStateTaxImpactCalculator';
 import MilitaryRetTaxImpactCalculator from './MilitaryRetTaxImpactCalculator';
 import DisabledVetPropertyTaxReliefEstimator from './DisabledVetPropertyTaxReliefEstimator';
 import MSRRAIncomeTaxEstimator from './MSRRAIncomeTaxEstimator';
 
+import CalculatorsRouter from './calculators/Router.jsx';
 import { ErrorBoundary } from './ErrorBoundary';
 
 const calculators = [
@@ -58,7 +59,8 @@ const calculators = [
   { name: 'MSRRA Income Tax', component: MSRRAIncomeTaxEstimator, icon: '📑', phase: 4 },
 ];
 
-function App() {
+// Home screen = your existing UI
+function Home() {
   const [selected, setSelected] = useState(0);
   const SelectedComponent = calculators[selected].component;
 
@@ -282,4 +284,20 @@ function App() {
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* Home (your existing single-page UI) */}
+        <Route path="/" element={<Home />} />
+
+        {/* Calculators module with index and detail routes */}
+        <Route path="/calculators/*" element={<CalculatorsRouter />} />
+
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
