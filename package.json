@@ -19,7 +19,7 @@
     "release:data": "npm run update:data && git add public/data/masterData.json public/data/basePay_2025.json public/data/disabilityRates_2025.json && git commit -m 'Annual Data Update: DFAS + VA + SBP' && git tag -a data-$(date +%Y).1 -m 'Updated DFAS & VA rates for $(date +%Y)' && git push origin main --tags",
     "fix:state-data": "node src/scripts/convertStateToModule.js"
   },
-  "dependencies": {
+ "dependencies": {
     "@supabase/supabase-js": "^2.39.4",
     "@vitejs/plugin-react": "^5.0.2",
     "autoprefixer": "^10.4.14",
@@ -29,11 +29,12 @@
     "node-fetch": "^3.3.2",
     "postcss": "^8.4.24",
     "react": "^18.2.0",
-    "react-chartjs-2": "^5.3.0",
     "react-dom": "^18.2.0",
+    "react-chartjs-2": "^5.3.0",
     "recharts": "^3.2.1",
     "tailwindcss": "^3.4.1",
-    "vite": "^7.1.6"
+    "vite": "^7.1.6",
+    "react-router-dom": "^6.27.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
