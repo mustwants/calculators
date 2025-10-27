@@ -112,6 +112,42 @@ const HeroSection = ({ onCalculatorSelect, selectedCalculator }) => {
       description: 'GI Bill housing stipend estimator and benefit optimizer',
       phase: 3
     },
+        // Phase 4: State Tax Intelligence
+    { 
+      id: 'pcs-state-tax', 
+      name: 'PCS State Tax Impact', 
+      icon: '🧾', 
+      description: 'Analyze PCS-related state income tax differences',
+      phase: 4
+    },
+    { 
+      id: 'mil-ret-tax', 
+      name: 'Military Ret Tax Impact', 
+      icon: '🧮', 
+      description: 'Estimate state income tax on military retirement pay',
+      phase: 4
+    },
+    { 
+      id: 'disabled-vet-relief', 
+      name: 'Disabled Vet Prop-Tax Relief', 
+      icon: '🏡', 
+      description: 'Property-tax relief estimator for disabled veterans',
+      phase: 4
+    },
+    { 
+      id: 'msrra-income-tax', 
+      name: 'MSRRA Income Tax', 
+      icon: '📑', 
+      description: 'Military Spouse Residency Relief Act income-tax estimator',
+      phase: 4
+    },
+    { 
+      id: 'sbp-decision', 
+      name: 'SBP Decision', 
+      icon: '🛡️', 
+      description: 'Survivor Benefit Plan decision helper for retirees',
+      phase: 4
+    },
   ];
 
   return (
